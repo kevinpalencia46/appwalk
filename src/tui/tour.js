@@ -40,6 +40,7 @@ export function step(state, key, data, tour = data.tour) {
     if (f) return { to: 'viewer', params: { file: f } };
     return state;
   }
+  if (key === 'g') return { to: 'glossary' };   // the hints advertise it; make it real
   if (key === 'q') return { done: true };
   return state;
 }

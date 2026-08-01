@@ -31,3 +31,8 @@ test('tour step advances, opens a file, and finishes on the last step', async ()
   assert.deepEqual(step({ step: 1 }, 'o', data, tour), { to: 'viewer', params: { file: tour[1].files[0] } });
   assert.deepEqual(step({ step: tour.length - 1 }, 'enter', data, tour), { done: true });
 });
+
+test('tour step: g routes to the glossary screen', async () => {
+  const data = await makeData();
+  assert.deepEqual(step(init(), 'g', data, data.tour), { to: 'glossary' });
+});
