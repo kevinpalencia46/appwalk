@@ -40,5 +40,4 @@ template. The AI layer must degrade to the deterministic answer when a key is ab
 
 ## Status
 
-Spec approved (2026-08-01); implementation plan pending. Nothing built yet beyond the
-scaffold.
+All modes implemented (walk/tree/audit/monitor/explain/glossary/doctor/report). AI explanations are deterministic-hint v1 with live provider calls marked # VERIFY. Run `node bin/appwalk.js doctor` to self-check.
