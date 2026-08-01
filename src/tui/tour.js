@@ -1,5 +1,5 @@
 // src/tui/tour.js
-import { box, bar, g, b, dim } from './kit.js';
+import { box, bar, g, b, dim, sanitize } from './kit.js';
 
 export const init = () => ({ step: 0 });
 export const hints = 'Enter continue · o open file · g glossary · q quit';
@@ -24,7 +24,7 @@ export function render(state, data, tour = data.tour) {
   const rows = [
     `  ${g('▶')}  ${b(t.title)}`,
     '',
-    ...wrap(t.body, 56).map((l) => `  ${l}`),
+    ...wrap(sanitize(t.body), 56).map((l) => `  ${l}`),
     ...(t.files?.[0] ? ['', `  (file: ${dim(t.files[0].split('/').pop())} — press ${g('o')} to open)`] : []),
   ];
   return box(header, rows);

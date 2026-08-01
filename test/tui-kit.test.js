@@ -1,7 +1,7 @@
 // test/tui-kit.test.js
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { box, bar, g, dim, decodeKey } from '../src/tui/kit.js';
+import { box, bar, g, dim, decodeKey, visLen } from '../src/tui/kit.js';
 
 test('box draws a framed panel with a title', () => {
   const out = box('hello', ['one', 'two'], { width: 16 });
@@ -16,6 +16,21 @@ test('box truncates an over-long title to keep the frame inside width', () => {
 test('colors wrap in ANSI codes', () => {
   assert.equal(g('ok'), '\x1b[32mok\x1b[0m');
   assert.equal(dim('x'), '\x1b[2mx\x1b[0m');
+});
+test('box pads ANSI rows by visible width so colored and plain rows are equal, keeping the reset', () => {
+  const width = 30;              // box() clamps widths to a 30 minimum → inner = 26
+  const inner = width - 4;
+  const colored = g('▶ ' + 'x'.repeat(40));     // green run that must be truncated at a code boundary
+  const plain = '▶ ' + 'x'.repeat(40);
+  const out = box('t', [colored, plain], { width });
+  const lines = out.split('\n');
+  const strip = (s) => s.replace(/^│ /, '').replace(/ │$/, '');
+  const rColored = strip(lines[1]);
+  const rPlain = strip(lines[2]);
+  assert.equal(visLen(rColored), inner, 'colored row fills the inner width in visible columns');
+  assert.equal(visLen(rPlain), inner, 'plain row fills the inner width in visible columns');
+  assert.equal(visLen(rColored), visLen(rPlain), 'colored and plain rows are the same visible width');
+  assert.ok(rColored.endsWith('\x1b[0m'), 'truncated colored row still ends with a color reset');
 });
 test('decodeKey handles arrows, enter, letters, split escapes, and CRLF', () => {
   assert.deepEqual(decodeKey('\x1b[A'), { token: 'up', used: 3 });

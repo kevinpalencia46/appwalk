@@ -8,13 +8,56 @@ export const r = (s) => c('31', s);
 export const dim = (s) => c('2', s);
 export const inv = (s) => c('7', s);
 
+// Terminal-escape injection guard: repo content rendered into a raw-mode terminal is
+// untrusted. Strip ESC (0x1b), C0 controls (0x00-0x08, 0x0b, 0x0c, 0x0e-0x1f), DEL and
+// the C1 controls (0x7f-0x9f) — every byte that a terminal would interpret — replacing
+// them with U+FFFD so the text stays readable. Shared by every screen that renders
+// untrusted text (tour bodies, audit findings, the highlighter).
+export const sanitize = (s) => String(s).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, '�');
+
+// Visible length of a string: ANSI SGR runs (\x1b[<params>m) set color, they don't
+// occupy columns, so counting them toward box width makes colored rows short.
+export const visLen = (s) => String(s).replace(/\x1b\[[0-9;]*m/g, '').length;
+
+// Truncate to `max` VISIBLE characters, walking the string so we never split an ANSI
+// sequence. If the cut leaves a color run open, close it with a reset so the row still
+// renders as well-formed SGR and the trailing reset survives truncation.
+export function sliceVis(s, max) {
+  const str = String(s);
+  let out = '';
+  let vis = 0;
+  let open = false;
+  let i = 0;
+  while (i < str.length && vis < max) {
+    if (str[i] === '\x1b' && str[i + 1] === '[') {
+      let j = i + 2;
+      while (j < str.length && !((str[j] >= 'A' && str[j] <= 'Z') || (str[j] >= 'a' && str[j] <= 'z'))) j++;
+      j = Math.min(str.length, j + 1);
+      const code = str.slice(i, j);
+      out += code;
+      if (code.endsWith('m')) open = !(code === '\x1b[m' || code === '\x1b[0m');
+      i = j;
+      continue;
+    }
+    out += str[i];
+    vis++;
+    i++;
+  }
+  if (open) out += '\x1b[0m';
+  return out;
+}
+
 export function box(title, lines, { width = W() } = {}) {
   const w = Math.min(Math.max(width, 30), 120);
   const inner = w - 4;
   const t0 = String(title);
   const t = t0.length > w - 6 ? t0.slice(0, w - 7) + '…' : t0;
   const top = `┌─ ${t} ${'─'.repeat(Math.max(0, w - t.length - 5))}┐`;
-  const rows = lines.map((l) => `│ ${String(l).slice(0, inner).padEnd(inner)} │`);
+  const rows = lines.map((l) => {
+    let s = String(l);
+    if (visLen(s) > inner) s = sliceVis(s, inner);
+    return `│ ${s + ' '.repeat(Math.max(0, inner - visLen(s)))} │`;
+  });
   return [top, ...rows, `└${'─'.repeat(w - 2)}┘`].join('\n');
 }
 

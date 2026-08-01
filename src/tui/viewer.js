@@ -14,8 +14,10 @@ export function render(state, data) {
   }
   const file = state.file;
   if (!file) return box('File', ['  (nothing open)', '', '  Enter a path to view a file.']);
-  if (file.split('/').pop() === '.env') {
-    return box(file.split('/').pop(), ['', '  This is your .env file.', '', '  appwalk shows it as a location only —', '  values are never printed.', '', '  (press Enter to go back)']);
+  const base = file.split('/').pop() || '';
+  // Refuse every dotenv variant (.env, .env.local, .env.production, …), never just .env
+  if (/^\.env(\.|$)/.test(base)) {
+    return box(base, ['', '  This is your .env file.', '', '  appwalk shows it as a location only —', '  values are never printed.', '', '  (press Enter to go back)']);
   }
   const text = readFileSafeSync(file) ?? '';
   const lang = data.map?.flat?.find((n) => n.path === file)?.lang || 'txt';

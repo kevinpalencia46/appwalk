@@ -7,10 +7,11 @@ import { join } from 'node:path';
 import { buildMap } from '../src/tree.js';
 import { init, render, step } from '../src/tui/viewer.js';
 
-test('viewer renders the file header and refuses .env', async () => {
+test('viewer renders the file header and refuses .env variants', async () => {
   const root = await mkdtemp(join(tmpdir(), 'view-'));
   await writeFile(join(root, 'a.js'), 'const x = 1;');
   await writeFile(join(root, '.env'), 'SECRET=value');
+  await writeFile(join(root, '.env.local'), 'SECRET=value');
   await writeFile(join(root, 'foo.env'), 'SECRET=value');
   const map = await buildMap(root);
   const js = map.flat.find((n) => n.name === 'a.js');
@@ -18,7 +19,10 @@ test('viewer renders the file header and refuses .env', async () => {
   assert.match(s, /a\.js/);
   const env = init({ file: join(root, '.env'), mode: 'view' });
   assert.match(render(env, { root, map }), /location only/);
-  // only the exact basename '.env' is treated as .env — foo.env is viewable
+  // every dotenv variant is refused, not just the exact '.env' basename
+  assert.match(render(init({ file: join(root, '.env.local'), mode: 'view' }), { root, map }), /location only/);
+  assert.match(render(init({ file: join(root, '.env.production'), mode: 'view' }), { root, map }), /location only/);
+  // a file that merely ends in .env is a normal file — foo.env is viewable
   assert.doesNotMatch(render(init({ file: join(root, 'foo.env'), mode: 'view' }), { root, map }), /location only/);
 });
 test('viewer step scrolls, clamps at top/bottom, and backs out to home', async () => {

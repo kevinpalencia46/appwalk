@@ -36,3 +36,12 @@ test('tour step: g routes to the glossary screen', async () => {
   const data = await makeData();
   assert.deepEqual(step(init(), 'g', data, data.tour), { to: 'glossary' });
 });
+
+test('tour render sanitizes escape sequences out of the step body', async () => {
+  const evil = 'legit start\x1b[2J\x1b[?25l tail';
+  const s = render(init(), { tour: [{ title: 't', body: evil, files: [] }] });
+  assert.ok(!s.includes('\x1b[2J'), 'clear-screen escape leaked into the tour body');
+  assert.ok(!s.includes('\x1b[?25l'), 'cursor-hide escape leaked into the tour body');
+  assert.ok(s.includes('legit start'));
+  assert.ok(s.includes('tail'));
+});
