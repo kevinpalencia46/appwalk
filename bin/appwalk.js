@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 import { join } from 'node:path';
-import { writeFile } from 'node:fs/promises';
-import { renderReport } from '../src/report.js';
+import { readFileSafe } from '../src/util.js';
 import { buildMap } from '../src/tree.js';
 import { runTree } from '../src/tui.js';
-import { readFileSafe } from '../src/util.js';
 import { TERMS, lookup, renderTerm } from '../src/glossary.js';
 import { buildTour, printTour, detectStack } from '../src/walkthrough.js';
 import { scanSecrets } from '../src/audit/secrets.js';
@@ -12,59 +10,60 @@ import { scanDuplicates } from '../src/audit/duplicates.js';
 import { scanClutter } from '../src/audit/clutter.js';
 import { scanDeps } from '../src/audit/deps.js';
 import { scanGit } from '../src/audit/githygiene.js';
-import { explain, providerAvailable } from '../src/ai/index.js';
+import { explain, providerAvailable, pickLite } from '../src/ai/index.js';
 import { educateText } from '../src/ai/educate.js';
 import { monitor } from '../src/monitor.js';
+import { renderReport } from '../src/report.js';
+import { writeFile } from 'node:fs/promises';
 
 const root = process.cwd();
 const mode = process.argv[2] || 'walk';
+const HELP = `appwalk — walk your app, understand your code
+  appwalk              guided tour (no AI, free)
+  appwalk tree         clickable file map
+  appwalk audit [--json] [--report]   secrets/clutter/duplicates/deps/git
+  appwalk monitor      run the app and watch for errors
+  appwalk explain <file>  AI explanation (bring your own key)
+  appwalk glossary [term]
+  appwalk doctor       self-check`;
 
+const map = () => buildMap(root);
 const allFindings = async (m) => (await Promise.all([
   scanSecrets(m), scanDuplicates(m), scanClutter(m), scanDeps(m), scanGit(root, m),
 ])).flat();
 
-if (mode === 'audit') {
-  const map = await buildMap(root);
-  const finds = await allFindings(map);
-  if (!finds.length) console.log('audit: no findings 🎉');
-  else {
-    console.log(`audit: ${finds.length} finding(s)`);
-    for (const f of finds) {
-      if (f.kind === 'duplicate') { console.log(`≡ ${f.file}  ~duplicate of ${f.other} (sim ${f.sim}) — candidates to merge`); continue; }
-      const glyph = /stripe_live|aws|github|google|slack|db_url|private_key|generic_key|env_in_git/.test(f.kind) ? '⚠'
-        : /unused_dep|missing_lockfile|outdated_major/.test(f.kind) ? '⤫'
-        : '·';
-      console.log(`${glyph} ${f.file}${f.line ? ':' + f.line : ''} ${f.label || f.reason || f.kind}${f.snippet ? ` (${f.snippet})` : ''}`);
-    }
-  }
-  if (process.argv.includes('--report')) {
-    const html = renderReport({ root, map, finds });
-    await writeFile(join(root, 'appwalk-report.html'), html);
-    console.log('report written: appwalk-report.html');
-  }
+if (mode === 'doctor') {
+  const v = process.versions.node.split('.')[0];
+  console.log(`node: ${process.version} ${+v >= 20 ? 'OK' : 'need >= 20'}`);
+  const m = await map();
+  console.log(`files found: ${m.flat.length} (entry points: ${m.entryPoints.map((n) => n.name).join(', ') || 'none'})`);
+  console.log(`ai: ${providerAvailable() ? 'configured (' + pickLite() + ' lite)' : 'not configured — AI explanations off (core still works)'}`);
+  console.log(`repo rule: .env values are never printed by any mode`);
 } else if (mode === 'tree') {
-  const map = await buildMap(root);
-  if (!map.flat.length) { console.log('appwalk: no files found (empty or fully ignored).'); process.exit(0); }
-  await runTree(map);
+  const m = await map(); if (!m.flat.length) { console.log('appwalk: no files found.'); process.exit(0); }
+  await runTree(m);
 } else if (mode === 'glossary') {
-  const q = process.argv[3];
-  if (!q) { console.log(TERMS.map((t) => t.term).join('\n')); process.exit(0); }
-  const e = lookup(q);
-  console.log(e ? renderTerm(e) : `no term "${q}". Try: appwalk glossary`);
+  const q = process.argv[3]; if (!q) { console.log(TERMS.map((t) => t.term).join('\n')); }
+  else { const e = lookup(q); console.log(e ? renderTerm(e) : `no term "${q}". Try: appwalk glossary`); }
 } else if (mode === 'explain') {
-  const file = process.argv[3];
-  if (!file) { console.log('usage: appwalk explain <file>'); process.exit(0); }
+  const file = process.argv[3]; if (!file) { console.log('usage: appwalk explain <file>'); process.exit(0); }
   const text = await readFileSafe(join(root, file));
-  const r = await explain(`Explain this file in plain language for a beginner:\n\n${(text || '').slice(0, 6000)}`, { lite: true });
+  const r = await explain(`Explain this file for a beginner:\n\n${(text || '').slice(0, 6000)}`, { lite: true });
   console.log(r.text); console.log(`\n[${r.model} · ~${r.tokens} tokens · ~$${r.costUsd.toFixed(4)}]`);
   if (!providerAvailable()) console.log('\n' + educateText());
+} else if (mode === 'audit') {
+  const m = await map();
+  const finds = await allFindings(m);
+  console.log(`audit: ${finds.length} finding(s)`);
+  for (const f of finds) console.log(`  ${f.file}${f.line ? ':' + f.line : ''} ${f.label || f.reason || f.kind}${f.snippet ? ` (${f.snippet})` : ''}`);
+  if (process.argv.includes('--report')) { await writeFile(join(root, 'appwalk-report.html'), renderReport({ root, map: m, finds })); console.log('  report: appwalk-report.html'); }
 } else if (mode === 'monitor') {
-  const map = await buildMap(root);
-  await monitor(root, detectStack(map), { explain: (msg) => explain(msg, { lite: true }) });
-} else if (mode === 'walk') {
-  const map = await buildMap(root);
-  const tour = await buildTour(map, detectStack(map));
+  const m = await map();
+  await monitor(root, detectStack(m), { explain: (msg) => explain(msg, { lite: true }) });
+} else if (mode === 'walk' || mode === 'help' || mode === '--help') {
+  if (mode === 'help' || mode === '--help') { console.log(HELP); process.exit(0); }
+  const m = await map();
+  const tour = await buildTour(m, detectStack(m));
   console.log(printTour(tour));
-} else {
-  console.log(`appwalk: mode "${mode}" not built yet. Try: appwalk tree, appwalk glossary, appwalk walk`);
-}
+  console.log('\nNext: appwalk tree · appwalk audit · appwalk glossary');
+} else { console.log(`appwalk: unknown mode "${mode}"\n\n${HELP}`); }
