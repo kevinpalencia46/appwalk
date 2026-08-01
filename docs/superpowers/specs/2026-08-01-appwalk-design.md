@@ -43,6 +43,14 @@ code you didn't write yourself.
    project. Zero required dependencies. Works offline for the core.
 5. **Everything is explainable in situ.** Audit findings don't just say "secret found" —
    they explain the risk and the fix, and link to the glossary term.
+6. **Cost-transparent AI.** The walkthrough, audit, glossary, and report are pre-made and
+   deterministic — they use ZERO AI credits, and the tool says so explicitly ("this
+   section used no AI / cost you nothing"). AI explanations are clearly optional, show
+   their own cost (tokens / approx $) per call, and **default to a lite model** so a
+   beginner doesn't burn a powerful model's credits to ask "what does auth mean?".
+   Choosing a model is itself a taught lesson: lite = cheap/fast/good enough for
+   explanation, pro = capable/pricey for hard questions, local = free + private. This
+   doubles as model education and removes the #1 anxiety ("is this going to cost me?").
 
 ## Architecture
 
@@ -66,7 +74,12 @@ src/
   history.js              # git-log-aware "why does this file exist" context
   ai/
     index.js              # provider router (anthropic | deepseek | ollama | claude-code)
-    explain.js            # "explain this file / error / diff" via the user's key
+    models.js             # model tiers: lite (default for explanations) / pro (on demand);
+                          #   maps each provider's lite+pro names; shows cost per ~1k tokens
+    explain.js            # "explain this file / error / diff" via the user's key; prints the
+                          #   model used + token count + approx cost after each answer
+    educate.js            # the "choose your model" explainer (lite vs pro vs local: cost,
+                          #   speed, quality, privacy) — surfaced when a key is first set
   report.js               # markdown + HTML audit report
   util.js                 # esc, walk, lang-detect, size/units
 test/                     # node:test suites, one per module
@@ -175,3 +188,10 @@ Freemium, one-time or subscription at launch: **free** = tree + walkthrough + gl
 secrets scan. **Pro** = full audit (duplicates/deps/git), monitor, HTML report, AI
 explanations beyond the free quota (if we ever meter it). Because users bring their own
 key, marginal cost stays near zero and the tool can be priced as a plain product.
+
+**The honest-credits angle is a marketing pillar.** The deterministic core costs the
+user nothing and the tool says so at every step ("no AI used — free"). AI explanations
+are opt-in, lite-model by default, and show their cost per call. That directly answers
+the beginner's #1 question ("will this burn my credits?") and positions appwalk against
+tools that silently meter. The model-picker doubles as education, teaching users to
+choose lite/pro/local for the task — the "learn the language" mission applied to models.
