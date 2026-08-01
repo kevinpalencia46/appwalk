@@ -1,9 +1,13 @@
 {
   "name": "appwalk",
   "version": "0.1.0",
+  "description": "Walk a person through their own app — the guided tour + safety audit for code you didn't write. Zero-dependency, works with no AI key.",
   "type": "module",
   "bin": { "appwalk": "./bin/appwalk.js" },
+  "files": ["bin", "src"],
+  "keywords": ["beginner", "learn", "audit", "security", "secrets", "tutorial", "walkthrough", "vibe-code"],
   "engines": { "node": ">=20" },
+  "license": "SEE LICENSE IN LICENSE",
   "dependencies": {},
   "scripts": { "test": "node --test" }
 }

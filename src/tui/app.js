@@ -3,6 +3,7 @@ import { mkLoop, bar } from './kit.js';
 import { buildMap } from '../tree.js';
 import { detectStack, buildTour } from '../walkthrough.js';
 import { allFindings } from '../audit/index.js';
+import { inc as statsInc } from '../stats.js';
 import * as home from './home.js';
 import * as tour from './tour.js';
 import * as viewer from './viewer.js';
@@ -56,6 +57,11 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
         const params = { ...(route?.params || {}), ...(next.params || {}) };
         screen = { name: targetName, state: { ...target.init(), ...params } };
       } else if (next) {
+        // Instrumentation (product brief §0): reaching the choose-your-model step in the
+        // tour is a key funnel signal — measured locally, no telemetry home.
+        if (screen.name === 'tour' && next.step !== screen.state.step && data.tour?.[next.step]?.title?.includes('Choosing your AI model')) {
+          statsInc('reached_model_step');
+        }
         screen = { name: screen.name, state: next };
       }
       paint();

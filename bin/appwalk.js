@@ -10,6 +10,7 @@ import { explain, providerAvailable, pickLite } from '../src/ai/index.js';
 import { educateText } from '../src/ai/educate.js';
 import { monitor } from '../src/monitor.js';
 import { renderReport } from '../src/report.js';
+import { inc as statsInc, statsPath } from '../src/stats.js';
 import { writeFile } from 'node:fs/promises';
 
 const root = process.cwd();
@@ -32,6 +33,25 @@ if (mode === 'doctor') {
   console.log(`files found: ${m.flat.length} (entry points: ${m.entryPoints.map((n) => n.name).join(', ') || 'none'})`);
   console.log(`ai: ${providerAvailable() ? 'configured (' + pickLite() + ' lite)' : 'not configured — AI explanations off (core still works)'}`);
   console.log(`repo rule: .env values are never printed by any mode`);
+  // Copy-pasteable issue report (product brief §5a): fenced, masked, ends with an action.
+  const issue = [
+    '```',
+    `OS:        ${process.platform} ${process.arch}`,
+    `Node:      ${process.version}`,
+    `appwalk:   ${process.env.npm_package_version || '0.1.0'}`,
+    `command:   appwalk ${process.argv.slice(2).join(' ')}`,
+    `cwd:       ${root}`,
+    `ai key:    ${providerAvailable() ? 'configured (values never shown)' : 'not configured'}`,
+    `error:     (paste the error or wrong behavior you saw)`,
+    '```',
+    'Copy the block above into a GitHub issue.',
+  ].join('\n');
+  if (process.argv.includes('--report')) {
+    await writeFile(join(root, 'appwalk-doctor.txt'), issue + '\n');
+    console.log('\nissue report written: appwalk-doctor.txt');
+  } else {
+    console.log('\n' + issue);
+  }
 } else if (mode === 'tree') {
   const m = await map(); if (!m.flat.length) { console.log('appwalk: no files found.'); process.exit(0); }
   await shell(root, { screen: 'tree', map: m });
@@ -41,6 +61,7 @@ if (mode === 'doctor') {
   else { const e = lookup(q); console.log(e ? renderTerm(e) : `no term "${q}". Try: appwalk glossary`); }
 } else if (mode === 'explain') {
   const file = process.argv[3]; if (!file) { console.log('usage: appwalk explain <file>'); process.exit(0); }
+  statsInc('ran_explain');
   const text = await readFileSafe(join(root, file));
   const r = await explain(`Explain this file for a beginner:\n\n${(text || '').slice(0, 6000)}`, { lite: true });
   console.log(r.text); console.log(`\n[${r.model} · ~${r.tokens} tokens · ~$${r.costUsd.toFixed(6)}]`);
@@ -48,6 +69,7 @@ if (mode === 'doctor') {
 } else if (mode === 'audit') {
   const m = await map();
   const finds = await allFindings(root, m);
+  if (process.argv.includes('--report')) statsInc('ran_audit_report');
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify(finds, null, 2));
   } else {
@@ -66,6 +88,7 @@ if (mode === 'doctor') {
   await monitor(root, detectStack(m), { explain: (msg) => explain(msg, { lite: true }) });
 } else if (mode === 'walk' || mode === 'help' || mode === '--help') {
   if (mode === 'help' || mode === '--help') { console.log(HELP); process.exit(0); }
+  statsInc(providerAvailable() ? 'configured_key' : 'skipped_key');
   await shell(root);
   process.exit(0);
 } else { console.log(`appwalk: unknown mode "${mode}"\n\n${HELP}`); }
