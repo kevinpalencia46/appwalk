@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { buildMap } from '../src/tree.js';
 import { runTree } from '../src/tui.js';
+import { TERMS, lookup, renderTerm } from '../src/glossary.js';
 
 const root = process.cwd();
 const mode = process.argv[2] || 'walk';
@@ -8,6 +9,11 @@ if (mode === 'tree') {
   const map = await buildMap(root);
   if (!map.flat.length) { console.log('appwalk: no files found (empty or fully ignored).'); process.exit(0); }
   await runTree(map);
+} else if (mode === 'glossary') {
+  const q = process.argv[3];
+  if (!q) { console.log(TERMS.map((t) => t.term).join('\n')); process.exit(0); }
+  const e = lookup(q);
+  console.log(e ? renderTerm(e) : `no term "${q}". Try: appwalk glossary`);
 } else {
-  console.log(`appwalk: mode "${mode}" not built yet. Try: appwalk tree`);
+  console.log(`appwalk: mode "${mode}" not built yet. Try: appwalk tree, appwalk glossary`);
 }
