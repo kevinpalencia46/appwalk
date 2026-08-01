@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { join } from 'node:path';
+import { writeFile } from 'node:fs/promises';
+import { renderReport } from '../src/report.js';
 import { buildMap } from '../src/tree.js';
 import { runTree } from '../src/tui.js';
 import { readFileSafe } from '../src/util.js';
@@ -34,6 +36,11 @@ if (mode === 'audit') {
         : '·';
       console.log(`${glyph} ${f.file}${f.line ? ':' + f.line : ''} ${f.label || f.reason || f.kind}${f.snippet ? ` (${f.snippet})` : ''}`);
     }
+  }
+  if (process.argv.includes('--report')) {
+    const html = renderReport({ root, map, finds });
+    await writeFile(join(root, 'appwalk-report.html'), html);
+    console.log('report written: appwalk-report.html');
   }
 } else if (mode === 'tree') {
   const map = await buildMap(root);
