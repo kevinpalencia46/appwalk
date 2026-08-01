@@ -5,14 +5,16 @@ import { detectStack, buildTour } from '../walkthrough.js';
 import * as home from './home.js';
 import * as tour from './tour.js';
 import * as viewer from './viewer.js';
+import * as tree from './tree.js';
 
-export const SCREENS = { home, tour, viewer };
+export const SCREENS = { home, tour, viewer, tree };
 
-export async function shell(root) {
-  const map = await buildMap(root);
+export async function shell(root, { screen: start = 'home', map: preMap } = {}) {
+  const map = preMap ?? await buildMap(root);
   const stack = detectStack(map);
-  const data = { root, map, stack, tour: await buildTour(map, stack) };
-  let screen = { name: 'home', state: home.init() };
+  const data = { root, map, stack, tour: await buildTour(map, stack), tree: tree.buildFolderTree(map.flat) };
+  const name = SCREENS[start] ? start : 'home';
+  let screen = { name, state: SCREENS[name].init() };
   const paint = () => {
     const cur = SCREENS[screen.name];
     process.stdout.write('\x1b[2J\x1b[H' + cur.render(screen.state, data) + '\n' + bar(screen.name, cur.hints));

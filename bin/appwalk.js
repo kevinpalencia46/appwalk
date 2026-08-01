@@ -2,7 +2,6 @@
 import { join } from 'node:path';
 import { readFileSafe } from '../src/util.js';
 import { buildMap } from '../src/tree.js';
-import { runTree } from '../src/tui.js';
 import { shell } from '../src/tui/app.js';
 import { TERMS, lookup, renderTerm } from '../src/glossary.js';
 import { detectStack } from '../src/walkthrough.js';
@@ -42,7 +41,8 @@ if (mode === 'doctor') {
   console.log(`repo rule: .env values are never printed by any mode`);
 } else if (mode === 'tree') {
   const m = await map(); if (!m.flat.length) { console.log('appwalk: no files found.'); process.exit(0); }
-  await runTree(m);
+  await shell(root, { screen: 'tree', map: m });
+  process.exit(0);
 } else if (mode === 'glossary') {
   const q = process.argv[3]; if (!q) { console.log(TERMS.map((t) => t.term).join('\n')); }
   else { const e = lookup(q); console.log(e ? renderTerm(e) : `no term "${q}". Try: appwalk glossary`); }
