@@ -51,6 +51,12 @@ code you didn't write yourself.
    Choosing a model is itself a taught lesson: lite = cheap/fast/good enough for
    explanation, pro = capable/pricey for hard questions, local = free + private. This
    doubles as model education and removes the #1 anxiety ("is this going to cost me?").
+   **The model-picker is a step IN the walkthrough**, not a buried setting — every user,
+   even a Claude Code power user, is walked through lite/pro/local/claude-code once:
+   what each is GOOD at (capabilities), what it costs, and how to wire it (edit `.env`,
+   pick a provider). The goal: a Claude Code user discovers "I don't need to spend for a
+   'what does this mean' question — a free local model handles that." That lesson is the
+   product's gift to every vibe-coder, and it's cheap to deliver (deterministic text).
 
 ## Architecture
 
@@ -113,7 +119,11 @@ printing values).
 3. **"These are your folders"** — one pass through the tree with per-folder purpose.
 4. **"The main flow"** — follow one real request path through the code (e.g. a page load
    → handler → data → render), showing the files it touches.
-5. **"What to watch"** — the audit findings a beginner should care about first.
+5. **"Choosing your AI model"** — a walkthrough step (deterministic text) that teaches
+   lite vs pro vs local vs Claude Code: capabilities, cost, and the 30-second `.env`
+   setup. Shown to everyone, so even Claude Code users learn there's a free tier for
+   small questions.
+6. **"What to watch"** — the audit findings a beginner should care about first.
 Every term links to the glossary; every file explanation can include history context.
 
 ## Audit checks (v1)
