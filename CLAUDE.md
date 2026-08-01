@@ -1,47 +1,44 @@
-# <PROJECT NAME>
+# appwalk — walk your app, understand your code
 
-Read this file fully before doing any work. Sessions may run on different models
-(Claude / DeepSeek / Kimi); assume no memory outside this repo. Work in
-commit-sized chunks. Do not expand scope beyond the task you were asked to do.
-If a decision here seems wrong, say so in the commit message — don't silently
-redesign.
+A terminal CLI that guides a person through their own app front-to-back: how it starts,
+what each folder does, the main flow, what's broken or risky — and teaches the language
+(refactoring, RLS, auth, …) as it goes. Built for vibe-coders who shipped an app with AI
+but don't understand the code underneath.
 
-## Secrets / API keys — NEVER stop and wait for a key
+**Design:** `docs/superpowers/specs/2026-08-01-appwalk-design.md` (approved 2026-08-01).
 
-Missing credentials must not halt the build. When a task needs an API key:
+## Principles (from the spec — do not drift)
 
-1. Add the variable to `.env.example` (committed, blank/dummy) AND `.env`
-   (gitignored, blank if you don't have it).
-2. Read it through the guard: `from secrets_guard import need, have`
-   `key = need("SOME_KEY", "what it's for", "where-to-get-it.com")`.
-3. If the key is absent, `need()` logs it to `SECRETS_NEEDED.md` and returns
-   None. Build and commit everything that does NOT require the key's runtime
-   value. Stub or skip ONLY the specific calls that need the live key, marking
-   each `# BLOCKED: needs <KEY>`.
-4. Stop ONLY if the very next required step cannot run without the live key —
-   and even then, finish all other reachable work and commit first.
-5. If you need the key during the build itself (e.g. to learn an API's real
-   response shape), build against a saved sample or the documented schema,
-   mark it `# VERIFY against live response`, and note it in SECRETS_NEEDED.md.
-6. Non-Python project? Replicate secrets_guard's behaviour in the project's
-   language: read env, log missing keys to SECRETS_NEEDED.md, return
-   null instead of raising.
+- **Deterministic core, AI enhancement.** Tree, walkthrough, audit scans, glossary, and
+  report work with ZERO AI. The `ai` module is pluggable + bring-your-own-key
+  (Anthropic | DeepSeek | local Ollama | Claude Code) and only enriches explanations.
+  An AI key must NEVER be required for the core to work.
+- **Teach the language.** Every concept the tool touches links to a plain-language
+  glossary entry: what it is + why it matters + when you'd use it.
+- **History-aware.** File explanations can use git history ("added 3 weeks ago for X;
+  changed 14 times"). Degrade gracefully when there's no git.
+- **The `.env` is shown as a location, never its values** — in every mode.
+- **Node 20+, ESM, zero runtime deps.** ANSI TUI by hand. `node:test` per module.
 
-The user fills `.env` on their own schedule; the code and the checklist are
-waiting for them, not the other way around.
+## Modes
+
+`appwalk` (guided tour) · `tree` (file map browser) · `audit [--json|--report]` ·
+`monitor` · `explain <file>` · `glossary [term]` · `doctor`
+
+## Secrets / API keys
+
+Missing credentials must not halt the build. `AI_API_KEY` / `AI_MODEL` /
+`AI_PROVIDER` live in `.env` (gitignored); `.env.example` is the committed blank
+template. The AI layer must degrade to the deterministic answer when a key is absent.
 
 ## Working rules
 
-- One task per session/commit. Small, cleanly-diffable changes.
-- Never invent API field names: fetch real JSON or leave a `# VERIFY` marker.
-- Keep secrets in env vars only. Never commit `.env`.
-- Note disagreements in commit messages instead of redesigning.
-
-## Project spec
-
-<Describe the project here: what it is, architecture, decisions already made,
-and anything a fresh model must not re-litigate.>
+- One spec/plan per feature; small commits; reviewer is native Claude.
+- Never invent API field names — fetch real JSON or leave a `# VERIFY` marker.
+- Keep secrets in `.env` only. Never commit `.env`.
+- If a decision here seems wrong, say so in the commit — don't silently redesign.
 
 ## Status
 
-<Current state. What's built, what's verified, what's next.>
+Spec approved (2026-08-01); implementation plan pending. Nothing built yet beyond the
+scaffold.
