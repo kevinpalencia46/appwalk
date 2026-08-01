@@ -2,6 +2,7 @@
 import { buildMap } from '../src/tree.js';
 import { runTree } from '../src/tui.js';
 import { TERMS, lookup, renderTerm } from '../src/glossary.js';
+import { buildTour, printTour, detectStack } from '../src/walkthrough.js';
 
 const root = process.cwd();
 const mode = process.argv[2] || 'walk';
@@ -14,6 +15,10 @@ if (mode === 'tree') {
   if (!q) { console.log(TERMS.map((t) => t.term).join('\n')); process.exit(0); }
   const e = lookup(q);
   console.log(e ? renderTerm(e) : `no term "${q}". Try: appwalk glossary`);
+} else if (mode === 'walk') {
+  const map = await buildMap(root);
+  const tour = await buildTour(map, detectStack(map));
+  console.log(printTour(tour));
 } else {
-  console.log(`appwalk: mode "${mode}" not built yet. Try: appwalk tree, appwalk glossary`);
+  console.log(`appwalk: mode "${mode}" not built yet. Try: appwalk tree, appwalk glossary, appwalk walk`);
 }
