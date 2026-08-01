@@ -3,6 +3,7 @@ import { basename } from 'node:path';
 import { readFileSafe, rel } from './util.js';
 import { findMatches } from './glossary.js';
 import { educateText } from './ai/educate.js';   // deterministic text — no AI key needed
+import { fileHistory } from './history.js';
 
 export function detectStack(map) {
   const names = new Set(map.flat.map((n) => n.name));
@@ -49,9 +50,11 @@ export async function buildTour(map, stack) {
   const entry = n(stack.entry || 'index.js');
   if (entry) {
     const text = (await readFileSafe(entry.path) || '').slice(0, 1200);
+    const h = await fileHistory(map.root, rel(map.root, entry.path));
+    const hist = h ? `\n\n(history: added ${h.firstDate}, changed ${h.commits} time(s); last: ${h.lastMessage})` : '';
     steps.push({
       title: `A look inside ${basename(entry.path)}`,
-      body: `This file is ${entry.lang}, ${entry.size} bytes.${text ? `\n\n${text}\n\n` : ''}${gloss('debugging')}`,
+      body: `This file is ${entry.lang}, ${entry.size} bytes.${text ? `\n\n${text}\n\n` : ''}${hist}${gloss('debugging')}`,
       files: [entry.path],
     });
   }
