@@ -9,12 +9,12 @@ const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'build', 'co
 export async function scanClutter(map) {
   const out = [];
   for (const node of map.flat) {
-    if (/\.(bak|tmp|orig|swp)$/i.test(node.name)) out.push({ file: node.path, kind: 'bak', reason: `${node.name} looks like a leftover backup file` });
-    else if (node.name.toLowerCase() === 'todo') out.push({ file: node.path, kind: 'todo_only', reason: 'a file literally named TODO' });
+    if (/\.(bak|tmp|orig|swp)$/i.test(node.name)) out.push({ file: node.path, kind: 'bak', category: 'clutter', reason: `${node.name} looks like a leftover backup file`, fix: 'If this backup is no longer needed, delete it — git history is your real backup.' });
+    else if (node.name.toLowerCase() === 'todo') out.push({ file: node.path, kind: 'todo_only', category: 'clutter', reason: 'a file literally named TODO', fix: 'Delete it if it is a scratch file, or finish the task and delete the file.' });
     else if (/(\.js|\.py)$/.test(node.name)) {
       const t = await readFileSafe(node.path);
       if (t && /^\s*(\/\/|#|<!--|~).*$/m.test(t) && !t.trim().replace(/^\s*(#|\/\/|<!--|~).*$/gm, '').trim())
-        out.push({ file: node.path, kind: 'todo_only', reason: 'contains only comments/TODO lines — likely never finished' });
+        out.push({ file: node.path, kind: 'todo_only', category: 'clutter', reason: 'contains only comments/TODO lines — likely never finished', fix: 'Finish the TODO or delete the file — code with only comments is dead weight.' });
     }
   }
   // empty directories: map.flat only contains files, so a truly-empty dir never appears
@@ -33,7 +33,7 @@ export async function scanClutter(map) {
   await findDirs(map.root, '');
   for (const d of dirs) {
     let ents; try { ents = await readdir(join(map.root, d)); } catch { continue; }
-    if (!ents.length) out.push({ file: d, kind: 'empty_dir', reason: 'empty directory — can be removed' });
+    if (!ents.length) out.push({ file: d, kind: 'empty_dir', category: 'clutter', reason: 'empty directory — can be removed', fix: `Delete the empty directory with \`rmdir ${d}\` — it is just noise.` });
   }
   return out;
 }

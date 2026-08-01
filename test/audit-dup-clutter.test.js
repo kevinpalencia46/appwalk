@@ -17,6 +17,7 @@ test('scanDuplicates finds near-identical files', async () => {
   const finds = await scanDuplicates(map);
   assert.ok(finds.some((f) => f.file.endsWith('a.js') && f.other.endsWith('b.js')));
   assert.ok(!finds.some((f) => f.file.endsWith('c.js')));
+  assert.ok(finds.every((f) => f.category === 'duplicates' && typeof f.fix === 'string' && f.fix.length > 0), 'every duplicate finding carries a category + fix');
 });
 
 test('scanClutter finds .bak/.tmp, empty dirs, and todo-only files', async () => {
@@ -31,4 +32,5 @@ test('scanClutter finds .bak/.tmp, empty dirs, and todo-only files', async () =>
   assert.ok(finds.some((f) => f.file.endsWith('notes.tmp')));
   assert.ok(finds.some((f) => f.file.endsWith('todo.js')));
   assert.ok(finds.some((f) => f.kind === 'empty_dir'), 'truly-empty dir at root must be flagged');
+  assert.ok(finds.every((f) => f.category === 'clutter' && typeof f.fix === 'string' && f.fix.length > 0), 'every clutter finding carries a category + fix');
 });

@@ -19,6 +19,7 @@ test('scanSecrets finds live keys, db urls, and .env committed', async () => {
   assert.ok(finds.some((f) => f.kind === 'aws'));
   assert.ok(finds.some((f) => f.kind === 'env_in_git'));
   assert.ok(finds.every((f) => !f.snippet.includes('hunter2')), 'snippets must be masked, never raw secrets');
+  assert.ok(finds.every((f) => f.category === 'secrets' && typeof f.fix === 'string' && f.fix.length > 0), 'every secret finding carries a category + fix');
 });
 
 test('scanSecrets does not flag test/sample keys', async () => {

@@ -16,10 +16,10 @@ export async function scanDuplicates(map, { minSim = 0.8 } = {}) {
     for (let j = i + 1; j < texts.length; j++) {
       const a = texts[i].t, b = texts[j].t;
       if (!a || !b) continue;
-      if (a === b) { out.push({ file: texts[i].node.path, kind: 'duplicate', other: texts[j].node.path, sim: 1 }); continue; }
+      if (a === b) { out.push({ file: texts[i].node.path, kind: 'duplicate', category: 'duplicates', other: texts[j].node.path, sim: 1, fix: 'Review both files and merge the one that is redundant, then delete it — keep a single source of truth.' }); continue; }
       // containment sim (short vs long) + token overlap
       const shorter = a.length < b.length ? a : b, longer = a.length < b.length ? b : a;
-      if (shorter.length > 50 && longer.includes(shorter)) out.push({ file: texts[i].node.path, kind: 'duplicate', other: texts[j].node.path, sim: 0.95 });
+      if (shorter.length > 50 && longer.includes(shorter)) out.push({ file: texts[i].node.path, kind: 'duplicate', category: 'duplicates', other: texts[j].node.path, sim: 0.95, fix: 'Review both files and merge the one that is redundant, then delete it — keep a single source of truth.' });
     }
   }
   return out;

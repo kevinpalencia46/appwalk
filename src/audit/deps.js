@@ -10,12 +10,12 @@ export async function scanDeps(map) {
   const pkg = map.flat.find((n) => n.name === 'package.json');
   if (pkg) {
     if (!map.flat.some((n) => /package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb/.test(n.name)))
-      out.push({ file: 'package.json', kind: 'missing_lockfile', reason: 'no lockfile — installs are not reproducible' });
+      out.push({ file: 'package.json', kind: 'missing_lockfile', category: 'deps', reason: 'no lockfile — installs are not reproducible', fix: "Run your package manager's lockfile generator (e.g. `npm install`) to pin exact versions." });
     let raw;
     try {
       raw = JSON.parse(await readFileSafe(pkg.path) || '{}');
     } catch {
-      out.push({ file: 'package.json', kind: 'malformed_package_json', reason: 'package.json is not valid JSON — fix it before dependency checks' });
+      out.push({ file: 'package.json', kind: 'malformed_package_json', category: 'deps', reason: 'package.json is not valid JSON — fix it before dependency checks', fix: 'Repair the JSON syntax in package.json (check quotes and commas), or recreate it with `npm init -y`.' });
       return out;
     }
     const deps = Object.keys(raw.dependencies || {});
@@ -27,7 +27,7 @@ export async function scanDeps(map) {
         const t = await readFileSafe(n.path);
         return !!t && re.test(t);
       }));
-      if (!hit.some(Boolean)) out.push({ file: `package.json → ${d}`, kind: 'unused_dep', reason: `${d} is declared but I couldn't find an import — candidate to remove` });
+      if (!hit.some(Boolean)) out.push({ file: `package.json → ${d}`, kind: 'unused_dep', category: 'deps', reason: `${d} is declared but I couldn't find an import — candidate to remove`, fix: `Remove the unused dependency with \`npm uninstall ${d}\` (or your package manager's equivalent).` });
     }
   }
   return out;

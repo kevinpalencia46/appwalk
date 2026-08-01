@@ -10,8 +10,8 @@ export async function scanGit(root, map) {
     const { stdout } = await exec('git', ['status', '--porcelain'], { cwd: root, timeout: 8000 });
     for (const line of stdout.split('\n').filter(Boolean)) {
       const rel = line.slice(3);
-      if (rel === '.env' || rel.endsWith('/.env')) out.push({ file: rel, kind: 'env_in_git', reason: '.env is tracked by git — secrets are committed' });
-      else if (!rel.startsWith('??')) out.push({ file: rel, kind: 'uncommitted', reason: 'modified/uncommitted — changes are not saved to git' });
+      if (rel === '.env' || rel.endsWith('/.env')) out.push({ file: rel, kind: 'env_in_git', category: 'git', reason: '.env is tracked by git — secrets are committed', fix: 'Add .env to .gitignore, run `git rm --cached .env` to stop tracking it, and rotate any secrets that were committed.' });
+      else if (!rel.startsWith('??')) out.push({ file: rel, kind: 'uncommitted', category: 'git', reason: 'modified/uncommitted — changes are not saved to git', fix: 'Commit or stash the change — `git add <file> && git commit -m "…"`, or `git stash` if you are not ready.' });
     }
   } catch { /* not a git repo — skip */ }
   return out;

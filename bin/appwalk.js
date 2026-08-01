@@ -5,7 +5,7 @@ import { buildMap } from '../src/tree.js';
 import { shell } from '../src/tui/app.js';
 import { TERMS, lookup, renderTerm } from '../src/glossary.js';
 import { detectStack } from '../src/walkthrough.js';
-import { allFindings } from '../src/audit/index.js';
+import { allFindings, CATEGORIES, cleanCount } from '../src/audit/index.js';
 import { explain, providerAvailable, pickLite } from '../src/ai/index.js';
 import { educateText } from '../src/ai/educate.js';
 import { monitor } from '../src/monitor.js';
@@ -73,13 +73,14 @@ if (mode === 'doctor') {
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify(finds, null, 2));
   } else {
-    console.log(`audit: ${finds.length} finding(s)`);
+    console.log(`audit: ${cleanCount(finds)} of ${CATEGORIES.length} clean (${finds.length} finding${finds.length === 1 ? '' : 's'})`);
     for (const f of finds) {
       const where = `${f.file}${f.line ? ':' + f.line : ''}`;
       const what = f.kind === 'duplicate'
         ? `≡ ${where}  ~duplicate of ${f.other} (sim ${f.sim}) — candidates to merge`
         : `${where} ${f.label || f.reason || f.kind}${f.snippet ? ` (${f.snippet})` : ''}`;
       console.log(`  ${what}`);
+      console.log(`    — fix: ${f.fix || 'review this finding and remove the risk'}`);
     }
   }
   if (process.argv.includes('--report')) { await writeFile(join(root, 'appwalk-report.html'), renderReport({ root, map: m, finds })); console.log('  report: appwalk-report.html'); }
