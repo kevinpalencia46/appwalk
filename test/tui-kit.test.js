@@ -9,6 +9,10 @@ test('box draws a framed panel with a title', () => {
   assert.match(out, /│ one/);
   assert.match(out, /└────/);
 });
+test('box truncates an over-long title to keep the frame inside width', () => {
+  const out = box('x'.repeat(50), ['y'], { width: 30 });
+  assert.ok(out.split('\n')[0].length <= 30);
+});
 test('colors wrap in ANSI codes', () => {
   assert.equal(g('ok'), '\x1b[32mok\x1b[0m');
   assert.equal(dim('x'), '\x1b[2mx\x1b[0m');

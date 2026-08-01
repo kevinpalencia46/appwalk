@@ -11,7 +11,8 @@ export const inv = (s) => c('7', s);
 export function box(title, lines, { width = W() } = {}) {
   const w = Math.min(Math.max(width, 30), 120);
   const inner = w - 4;
-  const t = String(title);
+  const t0 = String(title);
+  const t = t0.length > w - 6 ? t0.slice(0, w - 7) + '…' : t0;
   const top = `┌─ ${t} ${'─'.repeat(Math.max(0, w - t.length - 5))}┐`;
   const rows = lines.map((l) => `│ ${String(l).slice(0, inner).padEnd(inner)} │`);
   return [top, ...rows, `└${'─'.repeat(w - 2)}┘`].join('\n');
@@ -20,7 +21,8 @@ export function box(title, lines, { width = W() } = {}) {
 export function bar(left, right) {
   const w = W();
   const l = String(left), r2 = String(right);
-  return inv((l + ' '.repeat(Math.max(1, w - l.length - r2.length)) + r2).slice(0, w));
+  const pad = Math.max(0, w - l.length - r2.length);
+  return inv((l + ' '.repeat(pad) + r2).slice(0, w));
 }
 
 export function decodeKey(buf) {
@@ -48,11 +50,13 @@ export function mkLoop({ stdin, stdout, onKey }) {
       if (finished) return;
       finished = true;
       stdin.removeListener('data', onData);
+      stdin.removeListener('end', onEnd);
       if (stdin.setRawMode && wasRaw === false) stdin.setRawMode(false);
       stdin.pause();
       stdout.write('\x1b[2J\x1b[H');
       resolve();
     };
+    const onEnd = finish;
     const onData = (chunk) => {
       try {
         buf += chunk;
@@ -67,5 +71,6 @@ export function mkLoop({ stdin, stdout, onKey }) {
       } catch (e) { finish(); }
     };
     stdin.on('data', onData);
+    stdin.on('end', onEnd);
   });
 }
