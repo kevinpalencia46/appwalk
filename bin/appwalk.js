@@ -3,8 +3,9 @@ import { join } from 'node:path';
 import { readFileSafe } from '../src/util.js';
 import { buildMap } from '../src/tree.js';
 import { runTree } from '../src/tui.js';
+import { shell } from '../src/tui/app.js';
 import { TERMS, lookup, renderTerm } from '../src/glossary.js';
-import { buildTour, printTour, detectStack } from '../src/walkthrough.js';
+import { detectStack } from '../src/walkthrough.js';
 import { scanSecrets } from '../src/audit/secrets.js';
 import { scanDuplicates } from '../src/audit/duplicates.js';
 import { scanClutter } from '../src/audit/clutter.js';
@@ -72,8 +73,6 @@ if (mode === 'doctor') {
   await monitor(root, detectStack(m), { explain: (msg) => explain(msg, { lite: true }) });
 } else if (mode === 'walk' || mode === 'help' || mode === '--help') {
   if (mode === 'help' || mode === '--help') { console.log(HELP); process.exit(0); }
-  const m = await map();
-  const tour = await buildTour(m, detectStack(m));
-  console.log(printTour(tour));
-  console.log('\nNext: appwalk tree · appwalk audit · appwalk glossary');
+  await shell(root);
+  process.exit(0);
 } else { console.log(`appwalk: unknown mode "${mode}"\n\n${HELP}`); }

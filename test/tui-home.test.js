@@ -1,0 +1,26 @@
+// test/tui-home.test.js
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { init, render, step } from '../src/tui/home.js';
+
+test('home render shows the project name and 5 choices', () => {
+  const s = render(init(), { root: '/home/ren/great-pacific' });
+  assert.match(s, /appwalk/);
+  assert.match(s, /great-pacific/);
+  assert.match(s, /guided tour/);
+  assert.match(s, /Explore your files/);
+  assert.match(s, /Audit for safety/);
+  assert.match(s, /Ask about a file/);
+  assert.match(s, /Learn the words/);
+});
+test('home step: arrows move, enter routes, q quits', () => {
+  let s = init();
+  assert.equal(step(s, 'down').sel, 1);
+  assert.equal(step({ sel: 4 }, 'down').sel, 4);            // clamps at last
+  assert.deepEqual(step({ sel: 0 }, 'enter'), { to: 'tour' });
+  assert.deepEqual(step({ sel: 1 }, 'enter'), { to: 'tree' });
+  assert.deepEqual(step({ sel: 2 }, 'enter'), { to: 'audit' });
+  assert.deepEqual(step({ sel: 3 }, 'enter'), { to: 'ask' });
+  assert.deepEqual(step({ sel: 4 }, 'enter'), { to: 'glossary' });
+  assert.deepEqual(step(init(), 'q'), { done: true });
+});
