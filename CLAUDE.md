@@ -40,4 +40,6 @@ template. The AI layer must degrade to the deterministic answer when a key is ab
 
 ## Status
 
-All modes implemented (walk/tree/audit/monitor/explain/glossary/doctor/report). AI explanations are LIVE (2026-08-01): providers wired + verified against real API responses (anthropic claude-sonnet-5/opus-5, deepseek-v4-flash, ollama llama3.2:3b, claude-code CLI). Set AI_PROVIDER + AI_API_KEY in .env. Run `node bin/appwalk.js doctor` to self-check.
+All modes + the appwalk shell (home menu, interactive tour, folder tree, file viewer with syntax coloring, audit + glossary screens) shipped 2026-08-01. Run `appwalk` (no mode) for the shell; explicit modes still work for scripting. `npm test` = 54 tests.
+
+AI explanations are LIVE (2026-08-01): providers wired + verified against real API responses (anthropic claude-sonnet-5/opus-5, deepseek-v4-flash, ollama llama3.2:3b, claude-code CLI). Set AI_PROVIDER + AI_API_KEY in .env. Run `node bin/appwalk.js doctor` to self-check.
