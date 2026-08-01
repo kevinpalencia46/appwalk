@@ -3,10 +3,16 @@ import { buildMap } from '../src/tree.js';
 import { runTree } from '../src/tui.js';
 import { TERMS, lookup, renderTerm } from '../src/glossary.js';
 import { buildTour, printTour, detectStack } from '../src/walkthrough.js';
+import { scanSecrets } from '../src/audit/secrets.js';
 
 const root = process.cwd();
 const mode = process.argv[2] || 'walk';
-if (mode === 'tree') {
+if (mode === 'audit') {
+  const map = await buildMap(root);
+  const finds = await scanSecrets(map);
+  if (!finds.length) console.log('audit: no secrets found 🎉');
+  else for (const f of finds) console.log(`⚠ ${f.file}:${f.line} ${f.label}${f.snippet ? ` (${f.snippet})` : ''}`);
+} else if (mode === 'tree') {
   const map = await buildMap(root);
   if (!map.flat.length) { console.log('appwalk: no files found (empty or fully ignored).'); process.exit(0); }
   await runTree(map);
