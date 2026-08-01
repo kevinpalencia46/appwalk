@@ -47,8 +47,8 @@ test('tree step: enter opens a file, right expands a folder, q quits', async () 
   let s = init();
   s = { ...s, tree };              // step needs the tree
 
-  // (a) cursor starts on the root package.json (a file) → enter opens it in the viewer
-  assert.deepEqual(step(s, 'enter', { root, map, tree }), { to: 'viewer', params: { file: join(root, 'package.json'), mode: 'view' } });
+  // (a) cursor starts on the root package.json (a file) → enter opens it in the viewer, back to tree
+  assert.deepEqual(step(s, 'enter', { root, map, tree }), { to: 'viewer', params: { file: join(root, 'package.json'), mode: 'view', back: 'tree' } });
 
   // (b) move onto the src dir, right expands it
   s = step(s, 'down', { root, map, tree });

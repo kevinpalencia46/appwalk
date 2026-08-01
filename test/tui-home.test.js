@@ -13,6 +13,12 @@ test('home render shows the project name and 5 choices', () => {
   assert.match(s, /Ask about a file/);
   assert.match(s, /Learn the words/);
 });
+test('home render celebrates when the tour just finished', () => {
+  const plain = render(init(), { root: '/x' });
+  assert.doesNotMatch(plain, /You did it/);
+  const celebrating = render(init({ celebrate: true }), { root: '/x' });
+  assert.match(celebrating, /🎉 You did it!/);
+});
 test('home step: arrows move, enter routes, q quits', () => {
   let s = init();
   assert.equal(step(s, 'down').sel, 1);

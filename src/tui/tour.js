@@ -32,12 +32,12 @@ export function render(state, data, tour = data.tour) {
 
 export function step(state, key, data, tour = data.tour) {
   if (key === 'enter') {
-    if (state.step >= tour.length - 1) return { done: true };
+    if (state.step >= tour.length - 1) return { to: 'home', params: { celebrate: true } };
     return { ...state, step: state.step + 1 };
   }
   if (key === 'o') {
     const f = tour[state.step]?.files?.[0];
-    if (f) return { to: 'viewer', params: { file: f } };
+    if (f) return { to: 'viewer', params: { file: f, back: 'tour' } };
     return state;
   }
   if (key === 'g') return { to: 'glossary' };   // the hints advertise it; make it real

@@ -66,7 +66,7 @@ export function step(state, key, data) {
   if (key === 'up') return { ...state, cursor: Math.max(0, state.cursor - 1) };
   if (key === 'right' && n?.type === 'dir') { const e = new Set(state.expanded); e.add(n.path); return { ...state, expanded: e }; }
   if (key === 'left' && n?.type === 'dir') { const e = new Set(state.expanded); e.delete(n.path); return { ...state, expanded: e }; }
-  if (key === 'enter' && n?.type === 'file') return { to: 'viewer', params: { file: n.path, mode: 'view' } };
+  if (key === 'enter' && n?.type === 'file') return { to: 'viewer', params: { file: n.path, mode: 'view', back: 'tree' } };
   if (key === 'a') return { ...state, showAudit: !state.showAudit };
   if (key === 'q') return { done: true };
   return state;

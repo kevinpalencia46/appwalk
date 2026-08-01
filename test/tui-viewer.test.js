@@ -41,3 +41,14 @@ test('viewer step scrolls, clamps at top/bottom, and backs out to home', async (
   assert.equal(s.line, 0); // up clamps at 0
   assert.deepEqual(step(s, 'enter'), { to: 'home' });
 });
+test('viewer backs out to the caller, not always home', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'view-back-'));
+  const file = join(root, 'a.js');
+  await writeFile(file, 'x');
+  // tree → viewer, then Enter: returns to tree
+  assert.deepEqual(step(init({ file, mode: 'view', back: 'tree' }), 'enter'), { to: 'tree' });
+  // tour → viewer, then q: returns to tour
+  assert.deepEqual(step(init({ file, mode: 'view', back: 'tour' }), 'q'), { to: 'tour' });
+  // the ask flow (no back): falls back to home
+  assert.deepEqual(step(init({ file, mode: 'view' }), 'enter'), { to: 'home' });
+});

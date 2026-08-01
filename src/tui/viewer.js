@@ -5,7 +5,7 @@ import { box, bar, g, b, dim } from './kit.js';
 import { highlight } from './highlight.js';
 const readFileSafeSync = (p) => { try { return readFileSync(p, 'utf8'); } catch { return null; } };
 
-export const init = (params = {}) => ({ file: params.file || null, line: 0, mode: params.mode || 'view', buf: '' });
+export const init = (params = {}) => ({ file: params.file || null, line: 0, mode: params.mode || 'view', buf: '', back: params.back || null });
 export const hints = '↑↓ scroll · Enter back · g glossary · q quit';
 
 export function render(state, data) {
@@ -33,10 +33,10 @@ export function step(state, key, data) {
     if (key === 'enter') {
       const p = state.buf.trim();
       const resolved = isAbsolute(p) ? p : join(data.root, p);
-      return { file: resolved, line: 0, mode: 'view', buf: '' };
+      return { file: resolved, line: 0, mode: 'view', buf: '', back: state.back };
     }
     if (key === '\x7f' || key === 'backspace') return { ...state, buf: state.buf.slice(0, -1) };
-    if (key === 'esc' || key === 'q') return { to: 'home' };
+    if (key === 'esc' || key === 'q') return { to: state.back || 'home' };
     if (/^[A-Za-z0-9_\-./~]$/.test(key)) return { ...state, buf: state.buf + key };
     return state;
   }
@@ -45,6 +45,6 @@ export function step(state, key, data) {
     return { ...state, line: Math.max(0, Math.min(totalLines - 1, state.line + 1)) };
   }
   if (key === 'up') return { ...state, line: Math.max(0, state.line - 1) };
-  if (key === 'enter' || key === 'q') return { to: 'home' };
+  if (key === 'enter' || key === 'q') return { to: state.back || 'home' };
   return state;
 }

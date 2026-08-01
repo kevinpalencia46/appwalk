@@ -9,7 +9,7 @@ export const ITEMS = [
   { to: 'glossary', icon: '📖', label: 'Learn the words' },
 ];
 
-export const init = () => ({ sel: 0 });
+export const init = (params = {}) => ({ sel: 0, celebrate: !!params.celebrate });
 export const hints = 'arrows move · Enter choose · q quit';
 
 export function render(state, { root }) {
@@ -17,6 +17,7 @@ export function render(state, { root }) {
   const rows = [
     '   👋  Hi! I\'ll help you understand your app.',
     `      Looking at:  ${b(name)}`,
+    ...(state.celebrate ? ['', `   ${g('🎉 You did it!')}  Tour complete — you know your app now.`] : []),
     '',
     ...ITEMS.map((it, i) => `   ${i === state.sel ? g('▶') : ' '}  ${it.icon}  ${it.label}`),
     '',

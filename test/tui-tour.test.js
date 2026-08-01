@@ -28,8 +28,9 @@ test('tour step advances, opens a file, and finishes on the last step', async ()
   const tour = await (await import('../src/walkthrough.js')).buildTour(data.map, data.stack);
   let s = init();
   assert.equal(step(s, 'enter', data, tour).step, 1);
-  assert.deepEqual(step({ step: 1 }, 'o', data, tour), { to: 'viewer', params: { file: tour[1].files[0] } });
-  assert.deepEqual(step({ step: tour.length - 1 }, 'enter', data, tour), { done: true });
+  assert.deepEqual(step({ step: 1 }, 'o', data, tour), { to: 'viewer', params: { file: tour[1].files[0], back: 'tour' } });
+  // finishing the last step lands back on home with the celebrate banner, not a quit
+  assert.deepEqual(step({ step: tour.length - 1 }, 'enter', data, tour), { to: 'home', params: { celebrate: true } });
 });
 
 test('tour step: g routes to the glossary screen', async () => {
