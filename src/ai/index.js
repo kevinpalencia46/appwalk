@@ -31,12 +31,15 @@ export function explain(prompt, { lite = true, root = process.cwd() } = {}) {
   // An unrecognized/placeholder AI_PROVIDER (e.g. the old pipe-delimited .env.example
   // value) must fall back to the anthropic lite tier instead of yielding `undefined`.
   const tier = TIERS[provider]?.[lite ? 'lite' : 'pro'] ?? TIERS.anthropic.lite;
+  // cost must come from the RESOLVED tier's provider, not the raw (possibly
+  // unrecognized) AI_PROVIDER — an unknown provider previously costed $0.
+  const costProvider = TIERS[provider] ? provider : 'anthropic';
   const tokens = Math.ceil(prompt.length / 4);
   // # VERIFY against live response for each provider's real request/response shape.
   // v1: return the deterministic cost estimate + a clear hint; wire live calls in a
   // follow-up once provider response shapes are captured (per repo rule: never invent).
   return Promise.resolve({
     text: `[AI explanation available — set AI_API_KEY (and optionally AI_PROVIDER/AI_MODEL) in .env to enable. Recommended: a lite model like ${tier?.id} for cheap explanations.]`,
-    model: tier?.id || 'none', tokens, costUsd: costFor(provider, lite ? 'lite' : 'pro', tokens),
+    model: tier?.id || 'none', tokens, costUsd: costFor(costProvider, lite ? 'lite' : 'pro', tokens),
   });
 }

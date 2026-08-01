@@ -49,7 +49,7 @@ if (mode === 'doctor') {
   const file = process.argv[3]; if (!file) { console.log('usage: appwalk explain <file>'); process.exit(0); }
   const text = await readFileSafe(join(root, file));
   const r = await explain(`Explain this file for a beginner:\n\n${(text || '').slice(0, 6000)}`, { lite: true });
-  console.log(r.text); console.log(`\n[${r.model} · ~${r.tokens} tokens · ~$${r.costUsd.toFixed(4)}]`);
+  console.log(r.text); console.log(`\n[${r.model} · ~${r.tokens} tokens · ~$${r.costUsd.toFixed(6)}]`);
   if (!providerAvailable()) console.log('\n' + educateText());
 } else if (mode === 'audit') {
   const m = await map();
