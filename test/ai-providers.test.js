@@ -35,7 +35,7 @@ test('parseOllama extracts message.content + eval counts', async () => {
 
 test('explain without a key still returns the deterministic hint (never crashes)', async () => {
   const { explain } = await import('../src/ai/index.js');
-  const r = await explain('hello', { root: '/tmp' });   // no .env there
+  const r = await explain('hello', { env: {} });   // hermetic: no key, no live call
   assert.match(r.text, /AI explanation available/);
   assert.ok(r.tokens > 0);
   assert.ok(r.costUsd >= 0);

@@ -7,14 +7,20 @@ import { callAnthropic, callDeepseek, callOllama, callClaudeCode } from './provi
 export { TIERS, costFor } from './models.js';
 
 export function loadEnv(root = process.cwd()) {
+  // The user's key lives in appwalk's OWN .env (~/appwalk/.env); a project-local
+  // .env may override it. Otherwise `appwalk explain` run inside any project would
+  // never find the key (it reads cwd/.env today, which the project doesn't own).
   const out = {};
-  try {
-    const txt = readFileSync(join(root, '.env'), 'utf8');
-    for (const line of txt.split('\n')) {
-      const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-      if (m) out[m[1]] = m[2].replace(/^["']|["']$/g, '');
-    }
-  } catch {}
+  const candidates = [new URL('../../.env', import.meta.url).pathname, join(root, '.env')];
+  for (const path of candidates) {
+    try {
+      const txt = readFileSync(path, 'utf8');
+      for (const line of txt.split('\n')) {
+        const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+        if (m) out[m[1]] = m[2].replace(/^["']|["']$/g, '');
+      }
+    } catch {}
+  }
   return out;
 }
 
@@ -29,16 +35,16 @@ export function providerAvailable(env = loadEnv()) {
 
 const SYSTEM = 'You are appwalk, a patient teacher explaining code to a beginner. Be plain, concrete, and encouraging: say what something is, why it matters, and how it fits.';
 
-export async function explain(prompt, { lite = true, root = process.cwd() } = {}) {
-  const env = loadEnv(root);
-  const provider = env.AI_PROVIDER || 'anthropic';
+export async function explain(prompt, { lite = true, root = process.cwd(), env } = {}) {
+  const env_ = env ?? loadEnv(root);
+  const provider = env_.AI_PROVIDER || 'anthropic';
   // Unrecognized/placeholder AI_PROVIDER must fall back to anthropic lite, and cost
   // must come from the RESOLVED provider's tier (unknown providers costed $0 before).
   const tier = TIERS[provider]?.[lite ? 'lite' : 'pro'] ?? TIERS.anthropic.lite;
   const costProvider = TIERS[provider] ? provider : 'anthropic';
   const estimated = Math.ceil(prompt.length / 4);
 
-  if (!providerAvailable(env)) {
+  if (!providerAvailable(env_)) {
     return {
       text: `[AI explanation available — set AI_API_KEY (and optionally AI_PROVIDER) in .env to enable. Recommended: a lite model like ${tier.id} for cheap explanations.]`,
       model: tier.id, tokens: estimated, costUsd: costFor(costProvider, lite ? 'lite' : 'pro', estimated),
@@ -46,7 +52,7 @@ export async function explain(prompt, { lite = true, root = process.cwd() } = {}
   }
 
   try {
-    const key = env.AI_API_KEY;
+    const key = env_.AI_API_KEY;
     let res;
     if (provider === 'ollama') res = await callOllama({ model: tier.id, prompt, system: SYSTEM });
     else if (provider === 'claude-code') res = await callClaudeCode({ prompt, system: SYSTEM });

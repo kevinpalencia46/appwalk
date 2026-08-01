@@ -26,3 +26,10 @@ test('educateText teaches lite vs pro vs local', () => {
   assert.match(s, /pro/i);
   assert.match(s, /local/i);
 });
+
+test('loadEnv reads appwalk\'s own .env and lets a project .env override', async () => {
+  const { loadEnv } = await import('../src/ai/index.js');
+  const env = loadEnv('/tmp');            // no project .env at /tmp
+  assert.equal(env.AI_PROVIDER, 'anthropic');   // from ~/appwalk/.env
+  assert.ok(env.AI_API_KEY && env.AI_API_KEY.length > 20);   // key present, not placeholder
+});
