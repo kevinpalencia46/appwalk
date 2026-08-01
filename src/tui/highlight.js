@@ -1,6 +1,9 @@
 // src/tui/highlight.js
 const KW = new Set(['const','let','var','function','return','import','from','export','default','if','else','for','while','class','new','async','await','true','false','null','undefined','type','interface','def','print']);
 const OK = new Set(['js','ts','jsx','tsx','py','json','html','css']);
+// Sticky regex: matches an identifier only at the exact lastIndex position,
+// so we can scan identifiers without copying the remaining string per char.
+const RE_IDENT = /[A-Za-z_$][A-Za-z0-9_$]*/y;
 
 export function highlight(code, lang) {
   if (!OK.has(lang)) return code;
@@ -18,7 +21,8 @@ export function highlight(code, lang) {
       let j = i; while (j < s.length && s[j] !== '\n') j++;
       out += `\x1b[2m${s.slice(i, j)}\x1b[0m`; i = j; continue;
     }
-    const m = /^[A-Za-z_$][A-Za-z0-9_$]*/.exec(s.slice(i));
+    RE_IDENT.lastIndex = i;
+    const m = RE_IDENT.exec(s);
     if (m && KW.has(m[0])) { out += `\x1b[34m${m[0]}\x1b[0m`; i += m[0].length; continue; }
     out += ch; i++;
   }
