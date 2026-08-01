@@ -6,18 +6,30 @@ import { buildTour, printTour, detectStack } from '../src/walkthrough.js';
 import { scanSecrets } from '../src/audit/secrets.js';
 import { scanDuplicates } from '../src/audit/duplicates.js';
 import { scanClutter } from '../src/audit/clutter.js';
+import { scanDeps } from '../src/audit/deps.js';
+import { scanGit } from '../src/audit/githygiene.js';
 
 const root = process.cwd();
 const mode = process.argv[2] || 'walk';
+
+const allFindings = async (m) => (await Promise.all([
+  scanSecrets(m), scanDuplicates(m), scanClutter(m), scanDeps(m), scanGit(root, m),
+])).flat();
+
 if (mode === 'audit') {
   const map = await buildMap(root);
-  const secrets = await scanSecrets(map);
-  if (!secrets.length) console.log('audit: no secrets found 🎉');
-  else for (const f of secrets) console.log(`⚠ ${f.file}:${f.line} ${f.label}${f.snippet ? ` (${f.snippet})` : ''}`);
-  const dups = await scanDuplicates(map);
-  for (const d of dups) console.log(`≡ ${d.file}  ~duplicate of ${d.other} (sim ${d.sim}) — candidates to merge`);
-  const clut = await scanClutter(map);
-  for (const c of clut) console.log(`· ${c.file}  ${c.reason}`);
+  const finds = await allFindings(map);
+  if (!finds.length) console.log('audit: no findings 🎉');
+  else {
+    console.log(`audit: ${finds.length} finding(s)`);
+    for (const f of finds) {
+      if (f.kind === 'duplicate') { console.log(`≡ ${f.file}  ~duplicate of ${f.other} (sim ${f.sim}) — candidates to merge`); continue; }
+      const glyph = /stripe_live|aws|github|google|slack|db_url|private_key|generic_key|env_in_git/.test(f.kind) ? '⚠'
+        : /unused_dep|missing_lockfile|outdated_major/.test(f.kind) ? '⤫'
+        : '·';
+      console.log(`${glyph} ${f.file}${f.line ? ':' + f.line : ''} ${f.label || f.reason || f.kind}${f.snippet ? ` (${f.snippet})` : ''}`);
+    }
+  }
 } else if (mode === 'tree') {
   const map = await buildMap(root);
   if (!map.flat.length) { console.log('appwalk: no files found (empty or fully ignored).'); process.exit(0); }
