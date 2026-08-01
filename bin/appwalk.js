@@ -5,11 +5,7 @@ import { buildMap } from '../src/tree.js';
 import { shell } from '../src/tui/app.js';
 import { TERMS, lookup, renderTerm } from '../src/glossary.js';
 import { detectStack } from '../src/walkthrough.js';
-import { scanSecrets } from '../src/audit/secrets.js';
-import { scanDuplicates } from '../src/audit/duplicates.js';
-import { scanClutter } from '../src/audit/clutter.js';
-import { scanDeps } from '../src/audit/deps.js';
-import { scanGit } from '../src/audit/githygiene.js';
+import { allFindings } from '../src/audit/index.js';
 import { explain, providerAvailable, pickLite } from '../src/ai/index.js';
 import { educateText } from '../src/ai/educate.js';
 import { monitor } from '../src/monitor.js';
@@ -28,9 +24,6 @@ const HELP = `appwalk — walk your app, understand your code
   appwalk doctor       self-check`;
 
 const map = () => buildMap(root);
-const allFindings = async (m) => (await Promise.all([
-  scanSecrets(m), scanDuplicates(m), scanClutter(m), scanDeps(m), scanGit(root, m),
-])).flat();
 
 if (mode === 'doctor') {
   const v = process.versions.node.split('.')[0];
@@ -54,7 +47,7 @@ if (mode === 'doctor') {
   if (!providerAvailable()) console.log('\n' + educateText());
 } else if (mode === 'audit') {
   const m = await map();
-  const finds = await allFindings(m);
+  const finds = await allFindings(root, m);
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify(finds, null, 2));
   } else {

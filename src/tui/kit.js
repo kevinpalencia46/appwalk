@@ -87,33 +87,39 @@ export function mkLoop({ stdin, stdout, onKey }) {
   stdin.resume();
   stdin.setEncoding('utf8');
   let buf = '';
-  return new Promise((resolve) => {
-    let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      stdin.removeListener('data', onData);
-      stdin.removeListener('end', onEnd);
-      if (stdin.setRawMode && wasRaw === false) stdin.setRawMode(false);
-      stdin.pause();
-      stdout.write('\x1b[2J\x1b[H');
-      resolve();
-    };
-    const onEnd = finish;
-    const onData = (chunk) => {
-      try {
-        buf += chunk;
-        while (buf.length) {
-          // wait for a full escape sequence before decoding it
-          if (buf[0] === '\x1b' && buf.length < 3) break;
-          const d = decodeKey(buf);
-          buf = buf.slice(d.used);
-          if (d.token === null) continue;
-          if (onKey(d.token) === false) return finish();
-        }
-      } catch (e) { finish(); }
-    };
-    stdin.on('data', onData);
-    stdin.on('end', onEnd);
-  });
+  let chain = Promise.resolve();      // serializes async onKey handlers
+  let finished = false;
+  let resolve;
+  const done = new Promise((r) => { resolve = r; });
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    stdin.removeListener('data', onData);
+    stdin.removeListener('end', onEnd);
+    if (stdin.setRawMode && wasRaw === false) stdin.setRawMode(false);
+    stdin.pause();
+    stdout.write('\x1b[2J\x1b[H');
+    resolve();
+  };
+  const onEnd = () => finish();
+  const processBuf = async () => {
+    while (buf.length && !finished) {
+      // wait for a full escape sequence before decoding it
+      if (buf[0] === '\x1b' && buf.length < 3) break;
+      const d = decodeKey(buf);
+      buf = buf.slice(d.used);
+      if (d.token === null) continue;
+      if (await onKey(d.token) === false) { finish(); return; }
+    }
+  };
+  const onData = (chunk) => {
+    if (finished) return;
+    try {
+      buf += chunk;
+      chain = chain.then(processBuf).catch(() => finish());
+    } catch (e) { finish(); }
+  };
+  stdin.on('data', onData);
+  stdin.on('end', onEnd);
+  return done;
 }

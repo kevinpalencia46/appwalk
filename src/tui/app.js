@@ -2,11 +2,7 @@
 import { mkLoop, bar } from './kit.js';
 import { buildMap } from '../tree.js';
 import { detectStack, buildTour } from '../walkthrough.js';
-import { scanSecrets } from '../audit/secrets.js';
-import { scanDuplicates } from '../audit/duplicates.js';
-import { scanClutter } from '../audit/clutter.js';
-import { scanDeps } from '../audit/deps.js';
-import { scanGit } from '../audit/githygiene.js';
+import { allFindings } from '../audit/index.js';
 import * as home from './home.js';
 import * as tour from './tour.js';
 import * as viewer from './viewer.js';
@@ -21,10 +17,6 @@ const ROUTES = {
   ask: { screen: 'viewer', params: { mode: 'input' } },
 };
 
-const allFindings = async (root, m) => (await Promise.all([
-  scanSecrets(m), scanDuplicates(m), scanClutter(m), scanDeps(m), scanGit(root, m),
-])).flat();
-
 export async function shell(root, { screen: start = 'home', map: preMap } = {}) {
   const map = preMap ?? await buildMap(root);
   const stack = detectStack(map);
@@ -34,7 +26,10 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
     stack,
     tour: await buildTour(map, stack),
     tree: tree.buildFolderTree(map.flat),
-    findings: await allFindings(root, map),
+    // findings deliberately NOT precomputed here: the audit scans read every file, so
+    // eagerly awaiting them would stall the home menu and `appwalk tree`. They're
+    // computed lazily the first time the audit screen is entered (see onKey below) and
+    // memoized on `data` so the 5 scans run exactly once per shell session.
   };
   const name = SCREENS[start] ? start : 'home';
   let screen = { name, state: SCREENS[name].init() };
@@ -46,11 +41,14 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
   await mkLoop({
     stdin: process.stdin,
     stdout: process.stdout,
-    onKey: (key) => {
+    onKey: async (key) => {
       const cur = SCREENS[screen.name];
       const next = cur.step(screen.state, key, data);
       if (next?.done) return false;
       if (next?.to) {
+        if (next.to === 'audit' && !data.findings) {
+          data.findings = await allFindings(root, map);   // lazy, memoized on data
+        }
         const route = ROUTES[next.to];
         const targetName = route ? route.screen : next.to;
         const target = SCREENS[targetName];
