@@ -1,9 +1,10 @@
-// src/ai/index.js
+// src/ai/index.js — BYO-key AI layer. Deterministic hint when unconfigured;
+// live provider calls (verified response shapes) when a key is set.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { TIERS } from './models.js';
-export { TIERS } from './models.js';
-export const costFor = (provider, tier, tokens) => Math.round((TIERS[provider]?.[tier]?.cost || 0) * tokens * 1e6) / 1e6;
+import { TIERS, costFor } from './models.js';
+import { callAnthropic, callDeepseek, callOllama, callClaudeCode } from './providers.js';
+export { TIERS, costFor } from './models.js';
 
 export function loadEnv(root = process.cwd()) {
   const out = {};
@@ -21,25 +22,42 @@ export const pickLite = (env = loadEnv()) =>
   env.AI_PROVIDER === 'ollama' ? 'ollama' : env.AI_PROVIDER === 'claude-code' ? 'claude-code' : 'anthropic';
 
 export function providerAvailable(env = loadEnv()) {
-  if (env.AI_PROVIDER === 'ollama' || env.AI_PROVIDER === 'claude-code') return true;
+  const p = env.AI_PROVIDER || 'anthropic';
+  if (p === 'ollama' || p === 'claude-code') return true;
   return !!env.AI_API_KEY;
 }
 
-export function explain(prompt, { lite = true, root = process.cwd() } = {}) {
+const SYSTEM = 'You are appwalk, a patient teacher explaining code to a beginner. Be plain, concrete, and encouraging: say what something is, why it matters, and how it fits.';
+
+export async function explain(prompt, { lite = true, root = process.cwd() } = {}) {
   const env = loadEnv(root);
   const provider = env.AI_PROVIDER || 'anthropic';
-  // An unrecognized/placeholder AI_PROVIDER (e.g. the old pipe-delimited .env.example
-  // value) must fall back to the anthropic lite tier instead of yielding `undefined`.
+  // Unrecognized/placeholder AI_PROVIDER must fall back to anthropic lite, and cost
+  // must come from the RESOLVED provider's tier (unknown providers costed $0 before).
   const tier = TIERS[provider]?.[lite ? 'lite' : 'pro'] ?? TIERS.anthropic.lite;
-  // cost must come from the RESOLVED tier's provider, not the raw (possibly
-  // unrecognized) AI_PROVIDER — an unknown provider previously costed $0.
   const costProvider = TIERS[provider] ? provider : 'anthropic';
-  const tokens = Math.ceil(prompt.length / 4);
-  // # VERIFY against live response for each provider's real request/response shape.
-  // v1: return the deterministic cost estimate + a clear hint; wire live calls in a
-  // follow-up once provider response shapes are captured (per repo rule: never invent).
-  return Promise.resolve({
-    text: `[AI explanation available — set AI_API_KEY (and optionally AI_PROVIDER/AI_MODEL) in .env to enable. Recommended: a lite model like ${tier?.id} for cheap explanations.]`,
-    model: tier?.id || 'none', tokens, costUsd: costFor(costProvider, lite ? 'lite' : 'pro', tokens),
-  });
+  const estimated = Math.ceil(prompt.length / 4);
+
+  if (!providerAvailable(env)) {
+    return {
+      text: `[AI explanation available — set AI_API_KEY (and optionally AI_PROVIDER) in .env to enable. Recommended: a lite model like ${tier.id} for cheap explanations.]`,
+      model: tier.id, tokens: estimated, costUsd: costFor(costProvider, lite ? 'lite' : 'pro', estimated),
+    };
+  }
+
+  try {
+    const key = env.AI_API_KEY;
+    let res;
+    if (provider === 'ollama') res = await callOllama({ model: tier.id, prompt, system: SYSTEM });
+    else if (provider === 'claude-code') res = await callClaudeCode({ prompt, system: SYSTEM });
+    else if (provider === 'deepseek') res = await callDeepseek({ model: tier.id, prompt, system: SYSTEM, key });
+    else res = await callAnthropic({ model: tier.id, prompt, system: SYSTEM, key });
+    const tokens = res.tokens || estimated;
+    return { text: res.text, model: tier.id, tokens, costUsd: costFor(costProvider, lite ? 'lite' : 'pro', tokens) };
+  } catch (e) {
+    return {
+      text: `[AI call failed: ${e.message} — check AI_PROVIDER/AI_API_KEY in .env. The core appwalk modes work without AI.]`,
+      model: tier.id, tokens: estimated, costUsd: 0,
+    };
+  }
 }
