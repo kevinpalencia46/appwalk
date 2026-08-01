@@ -1,14 +1,16 @@
 // src/tui/app.js — the shell. Screens are registered here as they land.
 import { mkLoop, bar } from './kit.js';
 import { buildMap } from '../tree.js';
-import { detectStack } from '../walkthrough.js';
+import { detectStack, buildTour } from '../walkthrough.js';
 import * as home from './home.js';
+import * as tour from './tour.js';
 
-export const SCREENS = { home };
+export const SCREENS = { home, tour };
 
 export async function shell(root) {
   const map = await buildMap(root);
-  const data = { root, map, stack: detectStack(map) };
+  const stack = detectStack(map);
+  const data = { root, map, stack, tour: await buildTour(map, stack) };
   let screen = { name: 'home', state: home.init() };
   const paint = () => {
     const cur = SCREENS[screen.name];
