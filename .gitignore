@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+SECRETS_NEEDED.md
+snapshot_cache.json
+logs/
