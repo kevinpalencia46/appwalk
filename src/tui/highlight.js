@@ -6,10 +6,13 @@ const OK = new Set(['js','ts','jsx','tsx','py','json','html','css']);
 const RE_IDENT = /[A-Za-z_$][A-Za-z0-9_$]*/y;
 
 export function highlight(code, lang) {
-  if (!OK.has(lang)) return code;
+  // Terminal-escape injection guard: source files are untrusted input rendered into a
+  // raw-mode terminal, so strip ESC and C0 control chars (except tab/newline/cr) BEFORE
+  // any ANSI wrapping — a repo could contain a file with embedded escape sequences.
+  const s = String(code).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '�');
+  if (!OK.has(lang)) return s;
   let out = '';
   let i = 0;
-  const s = String(code);
   while (i < s.length) {
     const ch = s[i];
     if (ch === '"' || ch === "'" || ch === '`') {
