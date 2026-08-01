@@ -4,8 +4,9 @@ import { buildMap } from '../tree.js';
 import { detectStack, buildTour } from '../walkthrough.js';
 import * as home from './home.js';
 import * as tour from './tour.js';
+import * as viewer from './viewer.js';
 
-export const SCREENS = { home, tour };
+export const SCREENS = { home, tour, viewer };
 
 export async function shell(root) {
   const map = await buildMap(root);
