@@ -1,5 +1,13 @@
 #!/usr/bin/env node
-import { join } from 'node:path';
+import { buildMap } from '../src/tree.js';
+import { runTree } from '../src/tui.js';
+
 const root = process.cwd();
 const mode = process.argv[2] || 'walk';
-console.log(`appwalk: ${mode} (root ${root})`);
+if (mode === 'tree') {
+  const map = await buildMap(root);
+  if (!map.flat.length) { console.log('appwalk: no files found (empty or fully ignored).'); process.exit(0); }
+  await runTree(map);
+} else {
+  console.log(`appwalk: mode "${mode}" not built yet. Try: appwalk tree`);
+}
