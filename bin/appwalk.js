@@ -12,6 +12,7 @@ import { scanDeps } from '../src/audit/deps.js';
 import { scanGit } from '../src/audit/githygiene.js';
 import { explain, providerAvailable } from '../src/ai/index.js';
 import { educateText } from '../src/ai/educate.js';
+import { monitor } from '../src/monitor.js';
 
 const root = process.cwd();
 const mode = process.argv[2] || 'walk';
@@ -50,6 +51,9 @@ if (mode === 'audit') {
   const r = await explain(`Explain this file in plain language for a beginner:\n\n${(text || '').slice(0, 6000)}`, { lite: true });
   console.log(r.text); console.log(`\n[${r.model} · ~${r.tokens} tokens · ~$${r.costUsd.toFixed(4)}]`);
   if (!providerAvailable()) console.log('\n' + educateText());
+} else if (mode === 'monitor') {
+  const map = await buildMap(root);
+  await monitor(root, detectStack(map), { explain: (msg) => explain(msg, { lite: true }) });
 } else if (mode === 'walk') {
   const map = await buildMap(root);
   const tour = await buildTour(map, detectStack(map));
