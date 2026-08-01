@@ -19,19 +19,30 @@ test('langOf detects common extensions', () => {
   assert.equal(langOf('y.py'), 'py');
   assert.equal(langOf('z'), 'text');
 });
+test('walk tolerates a gitignore line with regex metacharacters (no crash)', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'walk-bad-ignore-'));
+  await writeFile(join(root, '.gitignore'), 'foo[bar\n');
+  await writeFile(join(root, 'a.js'), 'x');
+  const files = (await walk(root)).map((p) => p.replace(root + '/', ''));
+  assert.ok(files.includes('a.js'));
+});
+
 test('walk skips node_modules, .git, ignored dirs, and ignores by gitignore', async () => {
   const root = await mkdtemp(join(tmpdir(), 'walk-'));
   await mkdir(join(root, 'src'), { recursive: true });
   await mkdir(join(root, 'node_modules'), { recursive: true });
   await mkdir(join(root, 'dist'), { recursive: true });
+  await mkdir(join(root, 'src', 'node_modules'), { recursive: true });
   await writeFile(join(root, 'src', 'a.js'), 'x');
   await writeFile(join(root, 'node_modules', 'b.js'), 'y');
   await writeFile(join(root, 'dist', 'c.js'), 'z');
+  await writeFile(join(root, 'src', 'node_modules', 'd.js'), 'nested');
   await writeFile(join(root, '.gitignore'), '*.tmp\n');
   await writeFile(join(root, 'ignored.tmp'), 'nope');
   const files = (await walk(root)).map((p) => p.replace(root + '/', ''));
   assert.ok(files.includes('src/a.js'));
   assert.ok(!files.includes('node_modules/b.js'));
   assert.ok(!files.includes('dist/c.js'));
+  assert.ok(!files.includes('src/node_modules/d.js'));
   assert.ok(!files.includes('ignored.tmp'));
 });

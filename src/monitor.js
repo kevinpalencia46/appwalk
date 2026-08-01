@@ -18,11 +18,12 @@ export function monitor(root, stack, { explain } = {}) {
   console.log(`monitor: running \`${run.cmd} ${run.args.join(' ')}\` (Ctrl-C to stop)`);
   return new Promise((resolve) => {
     const child = spawn(run.cmd, run.args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    child.on('error', (e) => { console.log('monitor: failed to start: ' + e.message); resolve(); });
     const onLine = (line) => {
       process.stdout.write(line + '\n');
       if (isCrash(line)) {
         console.log('⚠ possible error detected.');
-        if (explain) explain(`A running app printed this error. Explain it simply and what to check:\n\n${line}`).then((r) => console.log('\n' + r.text));
+        if (explain) explain(`A running app printed this error. Explain it simply and what to check:\n\n${line}`).then((r) => console.log('\n' + r.text)).catch(() => {});
       }
     };
     let buf = '';

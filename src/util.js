@@ -33,7 +33,11 @@ function ignored(rel, patterns) {
   return patterns.some((p) => {
     const base = p.replace(/^\/+|\/+$/g, '');
     const b = base.replace(/\*/g, '[^/]*');
-    return rel === base || rel.startsWith(base + '/') || rel.endsWith('/' + base) || new RegExp('^' + b + '$').test(rel);
+    // A gitignore line can contain regex metacharacters (e.g. `foo[bar`) that make
+    // `new RegExp` throw — fall back to a plain substring match rather than crashing.
+    let re;
+    try { re = new RegExp('^' + b + '$'); } catch { re = null; }
+    return rel === base || rel.startsWith(base + '/') || rel.endsWith('/' + base) || (re ? re.test(rel) : rel.includes(base));
   });
 }
 
@@ -46,8 +50,10 @@ export async function walk(root, _seen = new Set()) {
     for (const e of ents) {
       const abs = join(dir, e.name);
       const relp = relative(root, abs).split('/').join('/');
-      const first = relp.split('/')[0];
-      if (ALWAYS_SKIP.has(first) || first.startsWith('.')) continue;
+      // Skip standard/ignored dirs and dotfiles at ANY depth, not just the top level
+      // (e.g. src/node_modules or nested dist/).
+      const parts = relp.split('/');
+      if (parts.some((seg) => ALWAYS_SKIP.has(seg) || seg.startsWith('.'))) continue;
       if (ignored(relp, patterns)) continue;
       if (e.isDirectory()) await rec(abs);
       else if (e.isFile()) out.push(abs);

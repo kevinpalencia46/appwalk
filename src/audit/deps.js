@@ -11,7 +11,13 @@ export async function scanDeps(map) {
   if (pkg) {
     if (!map.flat.some((n) => /package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb/.test(n.name)))
       out.push({ file: 'package.json', kind: 'missing_lockfile', reason: 'no lockfile — installs are not reproducible' });
-    const raw = JSON.parse(await readFileSafe(pkg.path) || '{}');
+    let raw;
+    try {
+      raw = JSON.parse(await readFileSafe(pkg.path) || '{}');
+    } catch {
+      out.push({ file: 'package.json', kind: 'malformed_package_json', reason: 'package.json is not valid JSON — fix it before dependency checks' });
+      return out;
+    }
     const deps = Object.keys(raw.dependencies || {});
     for (const d of deps) {
       // best-effort import scan: a dep is "used" if any source file imports it

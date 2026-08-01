@@ -12,8 +12,7 @@ export function renderTree(map, cursor, width = 80) {
     const line = `${mark} ${n.name.padEnd(24)}${meta}`.slice(0, width);
     lines.push(i === cursor ? `\x1b[7m${line}\x1b[0m` : line);
   }
-  const hasEnv = map.flat.some((n) => n.name === '.env');
-  lines.push(hasEnv ? '   .env detected — shown as location only (values never printed)'.slice(0, width) : '');
+  lines.push(map.hasEnv ? '   .env detected — shown as location only (values never printed)'.slice(0, width) : '');
   return lines.join('\n');
 }
 

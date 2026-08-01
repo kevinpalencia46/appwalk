@@ -1,4 +1,5 @@
 // src/tree.js
+import { existsSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { join, basename, dirname } from 'node:path';
 import { walk, langOf, rel, readFileSafe } from './util.js';
@@ -28,5 +29,7 @@ export async function buildMap(root) {
       entry: await isEntry(name, text || ''),
     });
   }
-  return { root, flat, entryPoints: flat.filter((n) => n.entry) };
+  // walk() skips dotfiles, so map.flat never contains .env — detect it directly so
+  // the tree can show it as a location (never its values).
+  return { root, flat, entryPoints: flat.filter((n) => n.entry), hasEnv: existsSync(join(root, '.env')) };
 }

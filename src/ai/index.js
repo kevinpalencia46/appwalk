@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { TIERS } from './models.js';
 export { TIERS } from './models.js';
-export const costFor = (provider, tier, tokens) => Math.round((TIERS[provider]?.[tier]?.cost || 0) * tokens * 100) / 100;
+export const costFor = (provider, tier, tokens) => Math.round((TIERS[provider]?.[tier]?.cost || 0) * tokens * 1e6) / 1e6;
 
 export function loadEnv(root = process.cwd()) {
   const out = {};
@@ -28,7 +28,9 @@ export function providerAvailable(env = loadEnv()) {
 export function explain(prompt, { lite = true, root = process.cwd() } = {}) {
   const env = loadEnv(root);
   const provider = env.AI_PROVIDER || 'anthropic';
-  const tier = TIERS[provider]?.[lite ? 'lite' : 'pro'];
+  // An unrecognized/placeholder AI_PROVIDER (e.g. the old pipe-delimited .env.example
+  // value) must fall back to the anthropic lite tier instead of yielding `undefined`.
+  const tier = TIERS[provider]?.[lite ? 'lite' : 'pro'] ?? TIERS.anthropic.lite;
   const tokens = Math.ceil(prompt.length / 4);
   // # VERIFY against live response for each provider's real request/response shape.
   // v1: return the deterministic cost estimate + a clear hint; wire live calls in a

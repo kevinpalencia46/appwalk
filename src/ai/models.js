@@ -5,4 +5,5 @@ export const TIERS = {
   ollama:    { lite: { id: 'llama3.2:3b', cost: 0 }, pro: { id: 'qwen2.5-coder:7b', cost: 0 } },
   'claude-code': { lite: { id: 'Claude Code', cost: 0 }, pro: { id: 'Claude Code', cost: 0 } },
 };
-export const costFor = (provider, tier, tokens) => Math.round((TIERS[provider]?.[tier]?.cost || 0) * tokens * 100) / 100;
+// Round to 6 decimals (micro-dollars) so a small lite call doesn't render as $0.0000.
+export const costFor = (provider, tier, tokens) => Math.round((TIERS[provider]?.[tier]?.cost || 0) * tokens * 1e6) / 1e6;

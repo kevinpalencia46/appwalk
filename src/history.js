@@ -14,7 +14,7 @@ export async function fileHistory(root, relPath) {
       commits: lines.length,
       firstDate: first.split('|')[1],
       lastDate: last.split('|')[1],
-      lastMessage: last.split('|')[2] || '',
+      lastMessage: last.split('|').slice(2).join('|'),
     };
   } catch { return null; }
 }

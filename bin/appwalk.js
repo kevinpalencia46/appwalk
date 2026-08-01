@@ -54,13 +54,17 @@ if (mode === 'doctor') {
 } else if (mode === 'audit') {
   const m = await map();
   const finds = await allFindings(m);
-  console.log(`audit: ${finds.length} finding(s)`);
-  for (const f of finds) {
-    const where = `${f.file}${f.line ? ':' + f.line : ''}`;
-    const what = f.kind === 'duplicate'
-      ? `≡ ${where}  ~duplicate of ${f.other} (sim ${f.sim}) — candidates to merge`
-      : `${where} ${f.label || f.reason || f.kind}${f.snippet ? ` (${f.snippet})` : ''}`;
-    console.log(`  ${what}`);
+  if (process.argv.includes('--json')) {
+    console.log(JSON.stringify(finds, null, 2));
+  } else {
+    console.log(`audit: ${finds.length} finding(s)`);
+    for (const f of finds) {
+      const where = `${f.file}${f.line ? ':' + f.line : ''}`;
+      const what = f.kind === 'duplicate'
+        ? `≡ ${where}  ~duplicate of ${f.other} (sim ${f.sim}) — candidates to merge`
+        : `${where} ${f.label || f.reason || f.kind}${f.snippet ? ` (${f.snippet})` : ''}`;
+      console.log(`  ${what}`);
+    }
   }
   if (process.argv.includes('--report')) { await writeFile(join(root, 'appwalk-report.html'), renderReport({ root, map: m, finds })); console.log('  report: appwalk-report.html'); }
 } else if (mode === 'monitor') {

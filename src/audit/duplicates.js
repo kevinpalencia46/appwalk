@@ -4,7 +4,9 @@ function norm(s) { return (s || '').replace(/\s+/g, ' ').trim(); }
 export async function scanDuplicates(map, { minSim = 0.8 } = {}) {
   const texts = [];
   for (const node of map.flat) {
-    if (!/\.(js|ts|jsx|tsx|py|html|css|json|md)$/.test(node.name)) continue;
+    // Docs (.md/.txt) embed code and aren't merge candidates — skip them.
+    if (/\.(md|txt)$/.test(node.name)) continue;
+    if (!/\.(js|ts|jsx|tsx|py|html|css|json)$/.test(node.name)) continue;
     if (node.size < 30) continue; // skip trivial one-liners, keep small-but-real files
     const t = await readFileSafe(node.path);
     if (t) texts.push({ node, t: norm(t) });

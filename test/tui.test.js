@@ -19,7 +19,7 @@ test('renderTree draws entries with cursor and entry marker', () => {
 });
 
 test('renderTree respects width and shows .env location hint', () => {
-  const map = { flat: [{ name: '.env', path: '/x/.env', lang: 'env', size: 5, dir: '.', entry: false }], entryPoints: [] };
+  const map = { flat: [], entryPoints: [], hasEnv: true };
   const out = renderTree(map, 0, 60);
   assert.match(out, /\.env/);
   assert.match(out, /location only/i);

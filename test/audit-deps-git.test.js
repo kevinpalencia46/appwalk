@@ -8,6 +8,14 @@ import { buildMap } from '../src/tree.js';
 import { scanDeps } from '../src/audit/deps.js';
 import { scanGit } from '../src/audit/githygiene.js';
 
+test('scanDeps reports malformed package.json as a finding instead of crashing', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'deps-bad-'));
+  await writeFile(join(root, 'package.json'), '{ this is not valid json ]');
+  const map = await buildMap(root);
+  const finds = await scanDeps(map);
+  assert.ok(finds.some((f) => f.kind === 'malformed_package_json'));
+});
+
 test('scanDeps flags missing lockfile and a clearly-unused dep', async () => {
   const root = await mkdtemp(join(tmpdir(), 'deps-'));
   await writeFile(join(root, 'package.json'), JSON.stringify({ dependencies: { express: '^4', lodash: '^4' } }));
