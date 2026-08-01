@@ -1,0 +1,9 @@
+{
+  "name": "appwalk",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": { "appwalk": "./bin/appwalk.js" },
+  "engines": { "node": ">=20" },
+  "dependencies": {},
+  "scripts": { "test": "node --test" }
+}
