@@ -1,5 +1,5 @@
 // src/tui/tree.js
-import { box, bar, g, b, dim } from './kit.js';
+import { box, bar, g, b, dim, inv } from './kit.js';
 
 export function buildFolderTree(flat) {
   const root = [];
@@ -43,12 +43,15 @@ export function render(state, data) {
   const tree = data.tree ?? buildFolderTree(data.map.flat);
   const rows = flatten(tree, state.expanded).map((n, i) => {
     const pad = '  '.repeat(n.depth);
+    let line;
     if (n.type === 'dir') {
-      return `  ${pad}${state.expanded.has(n.path) ? '▾' : '▸'} ${b(n.name)}/   (${n.children.length} item${n.children.length === 1 ? '' : 's'})`;
+      line = `  ${pad}${state.expanded.has(n.path) ? '▾' : '▸'} ${b(n.name)}/   (${n.children.length} item${n.children.length === 1 ? '' : 's'})`;
+    } else {
+      const mark = n.entry ? g('●') : ' ';
+      const meta = `${n.lang} · ${fmt(n.size)}`;
+      line = `  ${pad}${mark} ${n.name.padEnd(18)}${dim(meta)}`;
     }
-    const mark = n.entry ? g('●') : ' ';
-    const meta = `${n.lang} · ${fmt(n.size)}`;
-    return `  ${pad}${mark} ${n.name.padEnd(18)}${dim(meta)}${state.cursor === i ? '' : ''}`;
+    return i === state.cursor ? inv(line) : line;
   });
   const hasEnv = data.map.hasEnv;
   return box(data.root.split('/').filter(Boolean).pop() || 'app', [...rows, ...(hasEnv ? ['', '  ▸ .env — location only'] : [])]);

@@ -33,16 +33,28 @@ test('tree render shows folders, entry points, and the .env location row', async
   assert.match(s, /src/);
   assert.match(s, /index\.js/);
   assert.match(s, /location only/);
+  // the cursor row is rendered inverted — exactly one \x1b[7m marker
+  assert.equal((s.match(/\x1b\[7m/g) || []).length, 1);
 });
 
 test('tree step: enter opens a file, right expands a folder, q quits', async () => {
   const root = await mkdtemp(join(tmpdir(), 'tstep-'));
   await mkdir(join(root, 'src'), { recursive: true });
   await writeFile(join(root, 'src', 'index.js'), 'x');
+  await writeFile(join(root, 'package.json'), '{}');
   const map = await buildMap(root);
   const tree = buildFolderTree(map.flat);
   let s = init();
   s = { ...s, tree };              // step needs the tree
-  const opened = step(s, 'enter', { root, map, tree });
-  if (opened.to) assert.equal(opened.to, 'viewer');
+
+  // (a) cursor starts on the root package.json (a file) → enter opens it in the viewer
+  assert.deepEqual(step(s, 'enter', { root, map, tree }), { to: 'viewer', params: { file: join(root, 'package.json'), mode: 'view' } });
+
+  // (b) move onto the src dir, right expands it
+  s = step(s, 'down', { root, map, tree });
+  s = step(s, 'right', { root, map, tree });
+  assert.ok(s.expanded.has('src'));
+
+  // (c) q quits
+  assert.deepEqual(step(s, 'q', { root, map, tree }), { done: true });
 });
