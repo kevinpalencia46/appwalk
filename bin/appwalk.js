@@ -19,7 +19,7 @@ import { writeFile } from 'node:fs/promises';
 const root = process.cwd();
 const mode = process.argv[2] || 'walk';
 const HELP = `appwalk — walk your app, understand your code
-  appwalk              guided tour (no AI, free)
+  appwalk              opens the appwalk shell (home menu)
   appwalk tree         clickable file map
   appwalk audit [--json] [--report]   secrets/clutter/duplicates/deps/git
   appwalk monitor      run the app and watch for errors
