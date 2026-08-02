@@ -587,7 +587,7 @@ const SMALL_READ = 4096; // bounded prefix read for the code smell — a huge ap
 export async function suggestFiling(map) {
   const byRole = new Map();
   for (const n of map.flat) {
-    const rel = n.dir === '.' ? n.name : `${n.dir}/${n.name}`;
+    const rel = relOf(n);   // relOf is defined in Task 2 (src/config.js)
     // name/path first; only read a bounded prefix of code files for the smell
     const text = ROLE_SNIFF_RE.test(n.name) ? (await readFileSafe(n.path))?.slice(0, SMALL_READ) || '' : '';
     const role = classifyRole(n.name, n.path, rel, text);
@@ -598,7 +598,7 @@ export async function suggestFiling(map) {
   for (const [role, files] of byRole) {
     if (!GROUP_ROLES.has(role) || files.length < 3) continue;
     const dirs = new Set(files.map((f) => (f.dir === '.' ? '(root)' : f.dir)));
-    const shown = files.slice(0, SHOW_FILES).map((f) => ({ rel: f.dir === '.' ? f.name : `${f.dir}/${f.name}`, name: f.name }));
+    const shown = files.slice(0, SHOW_FILES).map((f) => ({ rel: relOf(f), name: f.name }));
     const label = ROLE_LABELS[role] || role;
     if (dirs.size > 1) {
       groups.push({
