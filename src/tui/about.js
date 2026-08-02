@@ -99,25 +99,25 @@ export function aboutFile(node, wrapWidth = 34) {
     `  ${name}`,
     '',
     '  what it is',
-    ...wrap(`  ${what}`, wrapWidth),
+    ...wrap(what, wrapWidth).map((l) => `  ${l}`),
     '',
     '  why it matters to you',
-    ...wrap(`  ${why}`, wrapWidth),
+    ...wrap(why, wrapWidth).map((l) => `  ${l}`),
     '',
     "  when you'd use it",
-    ...wrap(`  ${when}`, wrapWidth),
+    ...wrap(when, wrapWidth).map((l) => `  ${l}`),
     '',
     `  size: ${humanSize(size)}`,
-    ...wrap(`  That's how much text is in the file — ${humanSize(size)} is ${sizeTone(size)}. Big files (100KB+) usually mean a lot is happening in one place.`, wrapWidth),
+    ...wrap(`That's how much text is in the file — ${humanSize(size)} is ${sizeTone(size)}. Big files (100KB+) usually mean a lot is happening in one place.`, wrapWidth).map((l) => `  ${l}`),
   ];
   if (node?.name === 'package.json') {
     lines.push(
       '',
       '  scripts',
-      ...wrap('  Commands you can run, like npm run dev; each one is a shortcut for a longer command. You\'d add one when you find yourself typing the same command over and over.', wrapWidth),
+      ...wrap('Commands you can run, like npm run dev; each one is a shortcut for a longer command. You\'d add one when you find yourself typing the same command over and over.', wrapWidth).map((l) => `  ${l}`),
       '',
       '  dependencies',
-      ...wrap('  Libraries your app relies on — code other people wrote that you "install" into your project. Fewer is safer; each one is code you\'re trusting.', wrapWidth),
+      ...wrap('Libraries your app relies on — code other people wrote that you "install" into your project. Fewer is safer; each one is code you\'re trusting.', wrapWidth).map((l) => `  ${l}`),
     );
   }
   return lines;

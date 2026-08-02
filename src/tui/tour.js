@@ -3,7 +3,13 @@ import { box, boxWidth, MASCOT, g, b, dim, sanitize, wrap } from './kit.js';
 import { suggest } from './try.js';
 
 export const init = () => ({ step: 0 });
-export const hints = 'Press ENTER to continue · o = open the file · g = glossary · t = try it · h = home';
+// Dynamic so the bar never advertises 't = try it' on a step whose stack has nothing
+// safe to run (suggest() returns null) — a no-op key advertised is a dead end.
+export const hints = (state, data) => {
+  const t = data?.tour?.[state?.step];
+  const s = t ? suggest(data?.stack, t) : null;
+  return 'Press ENTER to continue · o = open the file · g = glossary' + (s ? ' · t = try it' : '') + ' · h = home';
+};
 
 export function render(state, data, tour = data.tour) {
   const t = tour[state.step];

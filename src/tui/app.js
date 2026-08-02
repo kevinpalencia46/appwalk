@@ -37,7 +37,8 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
   let screen = { name, state: SCREENS[name].init() };
   const paint = () => {
     const cur = SCREENS[screen.name];
-    process.stdout.write('\x1b[2J\x1b[H' + cur.render(screen.state, data) + '\n' + bar(screen.name, cur.hints));
+    const hints = typeof cur.hints === 'function' ? cur.hints(screen.state, data) : cur.hints;
+    process.stdout.write('\x1b[2J\x1b[H' + cur.render(screen.state, data) + '\n' + bar(screen.name, hints));
   };
   paint(); // initial frame before entering the loop
   await mkLoop({

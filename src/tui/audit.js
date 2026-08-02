@@ -20,7 +20,7 @@ const GLOSSARY_OF = {
 const glossaryFor = (f) => GLOSSARY_OF[f.kind] || 'refactoring';
 
 export const init = () => ({ cursor: 0, catCursor: 0, open: null, detail: null });
-export const hints = '↑↓ move · ENTER expand · c = copy fix · h = home · q = quit';
+export const hints = '↑↓ move · ENTER expand · c = copy ask-your-AI · h = home · q = quit';
 
 // A copy-ready "ask your AI" prompt for a finding, framed so a beginner can hand it
 // to any AI assistant (or type it themselves) and get walked through the fix.
