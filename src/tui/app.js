@@ -43,6 +43,13 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
     stdin: process.stdin,
     stdout: process.stdout,
     onKey: async (key) => {
+      // Global navigation: `h` returns to the home menu from anywhere (the beginner
+      // friendly way out — every screen also keeps its own q/q-back behavior).
+      if (key === 'h' && screen.name !== 'home') {
+        screen = { name: 'home', state: SCREENS.home.init() };
+        paint();
+        return true;
+      }
       const cur = SCREENS[screen.name];
       const next = cur.step(screen.state, key, data);
       if (next?.done) return false;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { init, render, step } from '../src/tui/audit.js';
+import { init, render, step, hints } from '../src/tui/audit.js';
 
 test('audit render shows the score line and a checklist, not a flat wall of findings', () => {
   const data = { findings: [
@@ -49,4 +49,8 @@ test('Enter on a clean category does nothing', () => {
   const data = { findings: [] };
   const st = step(init(), 'enter', data);
   assert.equal(st.open, null, 'nothing to expand when all categories are clean');
+});
+
+test('audit hints advertise the h-home key', () => {
+  assert.match(hints, /h home/);
 });
