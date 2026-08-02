@@ -905,8 +905,14 @@ test('home render shows the project name and 7 framed buttons (no mascot)', () =
   assert.match(s, /appwalk/);
   assert.match(s, /GREAT-PACIFIC/);
   assert.match(s, /Take the guided tour/);
+  assert.match(s, /Explore your files/);
+  assert.match(s, /Audit for safety/);
+  assert.match(s, /Ask about a file/);
+  assert.match(s, /Learn the words/);
+  assert.match(s, /See how it fits together/);
   assert.match(s, /Your setup/, 'the 7th button renders');
-  assert.match(s, /See your settings & tidy the tree/);
+  assert.match(s, /Walk your app step by step/);
+  assert.match(s, /Map how the pieces connect/);
   const tops = strip(s).match(/┌─+┐/g) || [];
   assert.equal(tops.length, 7, 'seven button frames render, not a list');
   assert.doesNotMatch(s, /o   o/, 'the ASCII duck is gone');
@@ -914,20 +920,25 @@ test('home render shows the project name and 7 framed buttons (no mascot)', () =
   assert.match(s, /→|▸|!|\?|»|↦|▣/, 'menu icons are ASCII/box-drawing glyphs');
 });
 
-test('home step: 3×3 grid — 2D arrows, empty cells clamp, no phantom slot', () => {
+test('home step: 2-wide 4-row grid — 2D arrows, lone 7th clamps, no phantom slot', () => {
   let s = init();
-  assert.equal(step(s, 'right').c, 1, 'right moves across row 0');
-  assert.equal(step(s, 'right').c, 2);
-  assert.equal(step(s, 'down').r, 1);
-  assert.equal(step({ r: 1, c: 2 }, 'down').r, 2, 'down from the flow button lands on config');
-  assert.equal(step({ r: 1, c: 2 }, 'down').c, 0, '…at the left, skipping the empty cells');
-  assert.equal(step({ r: 2, c: 0 }, 'down').r, 0, 'bottom wraps to top');
-  assert.equal(step({ r: 0, c: 0 }, 'up').r, 2, 'top wraps to bottom');
-  assert.equal(step({ r: 2, c: 0 }, 'right').c, 0, 'right past the empty cells wraps in place');
+  s = step(s, 'right');
+  assert.equal(s.c, 1, 'right moves across row 0');
+  assert.equal(step(s, 'right').c, 0, 'right wraps within a row');
+  assert.equal(step(s, 'down').r, 1, 'down moves a row');
+  assert.equal(step({ r: 1, c: 1 }, 'down').r, 2, 'down the second column');
+  assert.equal(step({ r: 2, c: 1 }, 'down').r, 3, 'down from the flow button to the last row');
+  assert.equal(step({ r: 2, c: 1 }, 'down').c, 0, '…lands on the lone 7th, skipping the empty cell');
+  assert.equal(step({ r: 3, c: 0 }, 'down').r, 0, 'bottom wraps to top');
+  assert.equal(step({ r: 0, c: 0 }, 'up').r, 3, 'top wraps to bottom');
+  assert.equal(step({ r: 3, c: 0 }, 'right').c, 0, 'right past the empty cell wraps in place');
   assert.deepEqual(step({ r: 0, c: 0 }, 'enter'), { to: 'tour' });
-  assert.deepEqual(step({ r: 0, c: 2 }, 'enter'), { to: 'audit' });
-  assert.deepEqual(step({ r: 1, c: 2 }, 'enter'), { to: 'flow' });
-  assert.deepEqual(step({ r: 2, c: 0 }, 'enter'), { to: 'config' });
+  assert.deepEqual(step({ r: 0, c: 1 }, 'enter'), { to: 'tree' });
+  assert.deepEqual(step({ r: 1, c: 0 }, 'enter'), { to: 'audit' });
+  assert.deepEqual(step({ r: 1, c: 1 }, 'enter'), { to: 'ask' });
+  assert.deepEqual(step({ r: 2, c: 0 }, 'enter'), { to: 'glossary' });
+  assert.deepEqual(step({ r: 2, c: 1 }, 'enter'), { to: 'flow' });
+  assert.deepEqual(step({ r: 3, c: 0 }, 'enter'), { to: 'config' });
   assert.deepEqual(step(init(), 'q'), { done: true });
 });
 ```
@@ -958,9 +969,10 @@ export const ITEMS = [
 Change the grid constants and the render's pairing loop to 3 across:
 
 ```js
-// Launcher grid: 7 buttons in a 3×3 grid — trailing empty cells (row 3, cols 1-2)
-// clamp instead of being reachable. 2D arrows move between buttons, Enter activates.
-const COLS = 3;
+// Launcher grid: 7 buttons, 2 across, 4 rows — wide buttons keep full labels (the
+// launcher should feel big); the 7th sits alone, left-aligned, on the last row.
+// 2D arrows move between buttons, Enter activates, empty cells clamp.
+const COLS = 2;
 const ROWS = Math.ceil(ITEMS.length / COLS);
 ```
 
@@ -969,27 +981,26 @@ Replace the `render` body after `const buttons = …` with a 3-way row helper:
 ```js
 export function render(state, { root }) {
   const name = root.split('/').filter(Boolean).pop() || root;
-  const btnW = Math.floor((boxWidth('full') - 8) / 3);
+  const btnW = Math.floor((boxWidth('full') - 6) / 2);
   const buttons = ITEMS.map((it, i) => buttonBox(it, idx(state.r, state.c) === i, btnW).split('\n'));
-  const row3 = (a, b, c) => {
-    const n = Math.max(a.length, b.length, c.length);
+  const side = (a, b) => {
+    const n = Math.max(a.length, b.length);
     const out = [];
-    for (let i = 0; i < n; i++) {
-      out.push(`${a[i] ?? ' '.repeat(btnW)}  ${b[i] ?? ' '.repeat(btnW)}  ${c[i] ?? ' '.repeat(btnW)}`);
-    }
+    for (let i = 0; i < n; i++) out.push((a[i] ?? ' '.repeat(btnW)) + '  ' + (b[i] ?? ' '.repeat(btnW)));
     return out;
   };
   const header = `   ${g('★ ' + name.toUpperCase())}${state.celebrate ? `   ${g('★ You did it!')}` : ''}`;
   const rows = [header, ''];
-  for (let i = 0; i < buttons.length; i += 3) {
+  for (let i = 0; i < buttons.length; i += 2) {
     if (i > 0) rows.push('');
-    rows.push(...row3(buttons[i], buttons[i + 1], buttons[i + 2]));
+    if (i + 1 < buttons.length) rows.push(...side(buttons[i], buttons[i + 1]));
+    else rows.push(...buttons[i]);   // lone 7th button, left-aligned on the last row
   }
   return box('appwalk', rows, { width: 'full' });
 }
 ```
 
-The existing `move()` function already generalizes to 3×3 (it scans columns/rows for the nearest `ok()` cell and wraps), so navigation needs no change. Remove the now-unused `side` helper.
+The existing `move()` function generalizes to 2-wide × 4 rows (it scans columns/rows for the nearest `ok()` cell and wraps), so navigation needs no change. `side` is used again (2-across); the `row3` helper from the earlier 3×3 pass is gone.
 
 - [ ] **Step 4: Update `src/tui/app.js`**
 
