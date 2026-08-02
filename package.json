@@ -1,6 +1,6 @@
 {
   "name": "appwalk-cli",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Walk a person through their own app — the guided tour + safety audit for code you didn't write. Zero-dependency, works with no AI key.",
   "type": "module",
   "bin": {
