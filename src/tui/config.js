@@ -28,7 +28,7 @@ function renderSettings(state, cfg) {
   const files = cfg.files || [];
   if (!files.length) return box('Your setup — settings', ['', '  No config files found.', '', '  (most projects have at least a package.json', '  or a .gitignore)', ''], { width: 'full' });
   if (state.detail) {
-    return box(`Your setup — ${state.detail.name}`, ['', ...detailLines(state.detail), ''], { width: 'full' });
+    return box(`Your setup — ${sanitize(state.detail.name)}`, ['', ...detailLines(state.detail), ''], { width: 'full' });
   }
   const cursor = Math.min(state.cursor, Math.max(0, files.length - 1));
   const rows = files.map((f, i) => `  ${i === cursor ? g('▶') : ' '}  ${g(sanitize(f.name))}${dim(' — ' + sanitize(f.what).slice(0, 40))}`);
