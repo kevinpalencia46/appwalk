@@ -271,7 +271,7 @@ const CONFIG_TYPES = {
         why: pkg.type === 'module'
           ? "'module' means your files use the modern import/export syntax (the .js = JavaScript lesson)"
           : "'commonjs' means your files use require()",
-        alternatives: 'switch it — but then every file's import syntax must match',
+        alternatives: "switch it — but then every file's import syntax must match",
       });
       const deps = Object.keys(pkg.dependencies || {});
       if (deps.length) out.push({
