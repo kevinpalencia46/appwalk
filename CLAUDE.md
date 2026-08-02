@@ -40,6 +40,8 @@ template. The AI layer must degrade to the deterministic answer when a key is ab
 
 ## Status
 
-All modes + the appwalk shell (home menu, interactive tour, folder tree, file viewer with syntax coloring, audit + glossary screens) shipped 2026-08-01. Run `appwalk` (no mode) for the shell; explicit modes still work for scripting. `npm test` = 60 tests.
+All modes + the appwalk shell (home menu, interactive tour, folder tree, file viewer with syntax coloring, audit + glossary screens) shipped 2026-08-01. Run `appwalk` (no mode) for the shell; explicit modes still work for scripting. `npm test` = 101 tests.
+
+Visual identity (2026-08-01): monochrome phosphor palette — phosphor green `#33FF66` for primary text/emphasis/headers, dim green `#1F9940` for borders/secondary, amber `#FFB300` for the mascot lantern flame ONLY, red `#FF4444` for real secrets ONLY. Every screen uses full-height boxes (content padded to the terminal, hint bar pinned to the bottom row) and content width capped at ~74 columns. A 14-row ASCII duck-with-lantern walks the home screen (4-frame cycle, 200ms stride, 370ms flame flicker, stops on the first keypress, settles to a static pose after ~3s on slow links); tour steps carry no mascot. Tour step 5 (choose your AI model) is a selectable 4-row picker (lite/pro/local/Claude Code) with cost + one-line "good at" per row and an Enter-expandable setup detail.
 
 AI explanations are LIVE (2026-08-01): providers wired + verified against real API responses (anthropic claude-sonnet-5/opus-5, deepseek-v4-flash, ollama llama3.2:3b, claude-code CLI). Set AI_PROVIDER + AI_API_KEY in .env. Run `node bin/appwalk.js doctor` to self-check.
