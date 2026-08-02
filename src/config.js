@@ -13,7 +13,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { readFileSafe } from './util.js';
-import { isConfigName } from './flow.js';
+import { isConfigName, classifyRole } from './flow.js';
 
 // ---------------------------------------------------------------------------
 // The config knowledge base — ORIGINAL prose, written for this project.
@@ -195,4 +195,66 @@ export async function scanConfigFiles(map, _stack = {}) {
     else files.push(await cardFor(n, kind));
   }
   return { files };
+}
+
+// ---------------------------------------------------------------------------
+// Clean-filing: role-grouped organization suggestions grounded in THIS project.
+// ---------------------------------------------------------------------------
+
+const ROLE_LABELS = {
+  entry: 'Entry', route: 'Route wiring', handler: 'Route handlers',
+  data: 'Data', render: 'Render / UI', util: 'Helpers', config: 'Config',
+};
+// Which roles are worth grouping. entry is one file; config (package.json etc.)
+// conventionally lives at root and tooling depends on it — leave those alone.
+const GROUP_ROLES = new Set(['route', 'handler', 'data', 'render', 'util']);
+const FOLDER_FOR = { route: 'routes/', handler: 'routes/', data: 'data/', render: 'ui/', util: 'lib/' };
+const SHOW_FILES = 6;
+
+const ROLE_SNIFF_RE = /\.(js|jsx|ts|tsx|py)$/;
+const SMALL_READ = 4096; // bounded prefix read for the code smell — a huge app isn't fully re-scanned
+
+export async function suggestFiling(map) {
+  const byRole = new Map();
+  for (const n of map.flat) {
+    const rel = relOf(n);   // relOf is defined in Task 2 (src/config.js)
+    // name/path first; only read a bounded prefix of code files for the smell
+    const text = ROLE_SNIFF_RE.test(n.name) ? (await readFileSafe(n.path))?.slice(0, SMALL_READ) || '' : '';
+    const role = classifyRole(n.name, n.path, rel, text);
+    if (!byRole.has(role)) byRole.set(role, []);
+    byRole.get(role).push(n);
+  }
+  const groups = [];
+  for (const [role, files] of byRole) {
+    if (!GROUP_ROLES.has(role) || files.length < 3) continue;
+    const dirs = new Set(files.map((f) => (f.dir === '.' ? '(root)' : f.dir)));
+    const shown = files.slice(0, SHOW_FILES).map((f) => ({ rel: relOf(f), name: f.name }));
+    const label = ROLE_LABELS[role] || role;
+    if (dirs.size > 1) {
+      groups.push({
+        role, label, files: shown,
+        suggestion: `these ${files.length} are spread across ${dirs.size} folders — a ${FOLDER_FOR[role]} folder would group them`,
+        note: null,
+      });
+    } else {
+      groups.push({
+        role, label, files: shown,
+        suggestion: null,
+        note: `already grouped together in ${[...dirs][0]} — good`,
+      });
+    }
+  }
+  // deterministic order: the way a reader scans a tree — data, then handlers, then UI
+  const order = { data: 0, handler: 1, route: 2, render: 3, util: 4 };
+  groups.sort((a, b) => (order[a.role] ?? 9) - (order[b.role] ?? 9));
+  return {
+    groups,
+    tips: [
+      'Keep the entry file at the root so it is the first thing you see.',
+      'Name files by their job (routes.js), not their order (file2.js).',
+      'One job per file — a file that renders AND reads the database is hard to follow.',
+      'Group by layer (routes/, data/, ui/) or by feature — pick one and stay consistent.',
+      'Never track secrets — the Audit screen checks .env and .gitignore.',
+    ],
+  };
 }
