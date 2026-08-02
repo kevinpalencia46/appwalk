@@ -1,5 +1,5 @@
 // src/tui/home.js
-import { box, g, b } from './kit.js';
+import { box, g, b, MASCOT } from './kit.js';
 
 export const ITEMS = [
   { to: 'tour', icon: '🚶', label: 'Take the guided tour' },
@@ -10,20 +10,26 @@ export const ITEMS = [
 ];
 
 export const init = (params = {}) => ({ sel: 0, celebrate: !!params.celebrate });
-export const hints = 'arrows move · Enter choose · q quit';
+export const hints = '↑↓ move · ENTER choose · q = quit';
 
 export function render(state, { root }) {
   const name = root.split('/').filter(Boolean).pop() || root;
+  // A blank line between choices makes each option read as a big, tappable row.
+  const choices = ITEMS.flatMap((it, i) => [
+    `   ${i === state.sel ? g('▶') : ' '}  ${it.icon}  ${it.label}`,
+    i < ITEMS.length - 1 ? '' : null,
+  ]).filter(Boolean);
   const rows = [
-    '   👋  Hi! I\'ll help you understand your app.',
-    `      Looking at:  ${b(name)}`,
-    ...(state.celebrate ? ['', `   ${g('🎉 You did it!')}  Tour complete — you know your app now.`] : []),
+    ...MASCOT.split('\n').map((l) => `   ${l}`),
     '',
-    ...ITEMS.map((it, i) => `   ${i === state.sel ? g('▶') : ' '}  ${it.icon}  ${it.label}`),
+    `      ${b('★ ' + name.toUpperCase())}`,
+    '',
+    ...(state.celebrate ? [`   ${g('🎉 You did it!')}  Tour complete — you know your app now.`, ''] : []),
+    ...choices,
     '',
     `   (${g(hints)})`,
   ];
-  return box('appwalk', rows);
+  return box('appwalk', rows, { width: 'full' });
 }
 
 export function step(state, key) {

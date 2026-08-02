@@ -8,6 +8,33 @@ export const r = (s) => c('31', s);
 export const dim = (s) => c('2', s);
 export const inv = (s) => c('7', s);
 
+// The appwalk mascot — a tiny, static, zero-dependency character shown at the top of
+// the home screen and each tour step. A single string constant so it's easy to tweak.
+export const MASCOT = `(•_•)
+/ >👋  hi! i'll help you understand your app.`;
+
+// Wrap a paragraph to `width` visible characters, keeping whole words intact. Shared by
+// the tour body and the glossary definition pane so long prose never overflows a box.
+export function wrap(text, width) {
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    if ((cur + ' ' + w).trim().length > width) { if (cur) lines.push(cur); cur = w; }
+    else cur = (cur + ' ' + w).trim();
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+// Resolve a requested box width: 'full' means the whole terminal minus a 2-col margin;
+// anything else is used as-is, then clamped to [min, 120]. The default minimum (44) is
+// deliberately wide so a beginner can see a screen's contents at a glance.
+export const boxWidth = (width = W(), min = 44) => {
+  if (width === 'full') width = Math.max(2, W() - 2);
+  return Math.min(Math.max(width, min), 120);
+};
+
 // Terminal-escape injection guard: repo content rendered into a raw-mode terminal is
 // untrusted. Strip ESC (0x1b), C0 controls (0x00-0x08, 0x0b, 0x0c, 0x0e-0x1f), DEL and
 // the C1 controls (0x7f-0x9f) — every byte that a terminal would interpret — replacing
@@ -47,8 +74,8 @@ export function sliceVis(s, max) {
   return out;
 }
 
-export function box(title, lines, { width = W() } = {}) {
-  const w = Math.min(Math.max(width, 30), 120);
+export function box(title, lines, { width = W(), min = 44 } = {}) {
+  const w = boxWidth(width, min);
   const inner = w - 4;
   const t0 = String(title);
   const t = t0.length > w - 6 ? t0.slice(0, w - 7) + '…' : t0;
@@ -65,7 +92,11 @@ export function bar(left, right) {
   const w = W();
   const l = String(left), r2 = String(right);
   const pad = Math.max(0, w - l.length - r2.length);
-  return inv((l + ' '.repeat(pad) + r2).slice(0, w));
+  const line = (l + ' '.repeat(pad) + r2).slice(0, w);
+  // Whole bar: bold + inverse video so the hints are the most prominent row on screen.
+  // The primary action (ENTER) is highlighted bright yellow inside it — a beginner
+  // should spot "press ENTER to continue" without hunting.
+  return '\x1b[1;7m' + line.replace(/ENTER/g, '\x1b[1;93mENTER\x1b[0m\x1b[1;7m') + '\x1b[0m';
 }
 
 export function decodeKey(buf) {

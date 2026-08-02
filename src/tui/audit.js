@@ -20,7 +20,7 @@ const GLOSSARY_OF = {
 const glossaryFor = (f) => GLOSSARY_OF[f.kind] || 'refactoring';
 
 export const init = () => ({ cursor: 0, catCursor: 0, open: null, detail: null });
-export const hints = '↑↓ move · Enter expand · ← back · h home · q quit';
+export const hints = '↑↓ move · ENTER expand · h = home · q = quit';
 
 const groupByCategory = (finds) => {
   const groups = {};

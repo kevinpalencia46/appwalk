@@ -1,33 +1,24 @@
 // src/tui/tour.js
-import { box, bar, g, b, dim, sanitize } from './kit.js';
+import { box, boxWidth, MASCOT, g, b, dim, sanitize, wrap } from './kit.js';
 
 export const init = () => ({ step: 0 });
-export const hints = 'Enter continue · o open file · g glossary · q quit';
-
-function wrap(text, width) {
-  const words = String(text).split(/\s+/).filter(Boolean);
-  const lines = [];
-  let cur = '';
-  for (const w of words) {
-    if ((cur + ' ' + w).trim().length > width) { if (cur) lines.push(cur); cur = w; }
-    else cur = (cur + ' ' + w).trim();
-  }
-  if (cur) lines.push(cur);
-  return lines;
-}
+export const hints = 'Press ENTER to continue · o = open the file · g = glossary · h = home';
 
 export function render(state, data, tour = data.tour) {
   const t = tour[state.step];
   if (!t) return box('Guided tour', ['(nothing to show)']);
   const total = tour.length;
   const header = `Guided tour · step ${state.step + 1} of ${total}`;
+  const w = boxWidth('full');
   const rows = [
+    ...MASCOT.split('\n').map((l) => `  ${l}`),
+    '',
     `  ${g('▶')}  ${b(t.title)}`,
     '',
-    ...wrap(sanitize(t.body), 56).map((l) => `  ${l}`),
+    ...wrap(sanitize(t.body), w - 10).map((l) => `  ${l}`),
     ...(t.files?.[0] ? ['', `  (file: ${dim(t.files[0].split('/').pop())} — press ${g('o')} to open)`] : []),
   ];
-  return box(header, rows);
+  return box(header, rows, { width: 'full' });
 }
 
 export function step(state, key, data, tour = data.tour) {

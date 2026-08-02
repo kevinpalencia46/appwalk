@@ -52,3 +52,28 @@ test('viewer backs out to the caller, not always home', async () => {
   // the ask flow (no back): falls back to home
   assert.deepEqual(step(init({ file, mode: 'view' }), 'enter'), { to: 'home' });
 });
+test('viewer input mode lists project files on the left', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'view-in-'));
+  await writeFile(join(root, 'a.js'), 'const a = 1;');
+  await writeFile(join(root, 'b.js'), 'const b = 2;');
+  const map = await buildMap(root);
+  const s = render(init({ mode: 'input' }), { root, map });
+  assert.match(s, /Ask about a file/);
+  assert.match(s, /a\.js/);
+  assert.match(s, /b\.js/);
+});
+test('viewer input mode typing filters the list and Enter opens the top match', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'view-filt-'));
+  await writeFile(join(root, 'alice.js'), 'x');
+  await writeFile(join(root, 'zebra.js'), 'y');
+  const map = await buildMap(root);
+  let st = init({ mode: 'input' });
+  for (const ch of 'zebra') st = step(st, ch, { root, map });
+  assert.equal(st.buf, 'zebra');
+  const s = render(st, { root, map });
+  assert.match(s, /zebra\.js/);
+  assert.doesNotMatch(s, /alice\.js/);
+  const opened = step(st, 'enter', { root, map });
+  assert.equal(opened.mode, 'view');
+  assert.ok(opened.file.endsWith('zebra.js'));
+});

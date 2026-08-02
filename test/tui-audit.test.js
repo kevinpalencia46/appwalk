@@ -52,5 +52,5 @@ test('Enter on a clean category does nothing', () => {
 });
 
 test('audit hints advertise the h-home key', () => {
-  assert.match(hints, /h home/);
+  assert.match(hints, /h = home/);
 });

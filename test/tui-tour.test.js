@@ -17,10 +17,11 @@ async function makeData() {
   return { root, map, stack, tour: await buildTour(map, stack) };
 }
 
-test('tour render shows step N of total and a body', async () => {
+test('tour render shows step N of total, the mascot, and a body', async () => {
   const data = await makeData();
   const s = render(init(), data);
   assert.match(s, /step 1 of/);
+  assert.match(s, /•_•/, 'mascot appears at the top of each tour step');
   assert.ok(s.length > 40);
 });
 test('tour step advances, opens a file, and finishes on the last step', async () => {
