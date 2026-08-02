@@ -22,7 +22,7 @@ You shipped it with AI. Now understand it.
 ## Run it
 
 ```bash
-npx appwalk        # no install, works in any project
+npx appwalk-cli        # no install, works in any project
 ```
 
 No account. No AI key needed for the core. Zero dependencies.
