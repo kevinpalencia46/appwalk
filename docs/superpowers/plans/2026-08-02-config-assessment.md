@@ -740,16 +740,20 @@ test('the .env card never shows its value, even in detail', async () => {
 });
 
 test('view 2 renders filing groups, tips, and a clutter pointer', async () => {
+  // scattered *.handler.js files -> a real suggestion branch (not the static tip)
   const config = await data({
     'package.json': '{"main":"index.js"}',
-    'index.js': "import a from './a.js'; import b from './b.js'; import c from './c.js';",
-    'a.js': 'export default () => {};', 'b.js': 'export default () => {};', 'c.js': 'export default () => {};',
+    'index.js': "import a from './api/a.handler.js'; import b from './routes/b.handler.js'; import c from './c.handler.js';",
+    'api/a.handler.js': 'export default (req, res) => {};',
+    'routes/b.handler.js': 'export default (req, res) => {};',
+    'c.handler.js': 'export default (req, res) => {};',
   });
   let s = step(init(), '2', { config });
   assert.equal(s.view, 2, '2 switches to Clean it up');
   const out = strip(render(s, { config, findings: [{ file: 'x', kind: 'bak', category: 'clutter' }] }));
   assert.match(out, /clean/i);
-  assert.match(out, /routes\//, 'the role-grouped suggestion renders');
+  assert.match(out, /Route handlers/, 'the group label renders');
+  assert.match(out, /would group them/, 'the group suggestion renders, not just the static tip');
   assert.match(out, /clutter/i, 'the clutter pointer renders when findings exist');
   // switching back works
   assert.equal(step(s, '1', { config }).view, 1);
