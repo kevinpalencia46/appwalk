@@ -155,10 +155,12 @@ import { join } from 'node:path';
 import { buildMap } from '../src/tree.js';
 import { scanConfigFiles } from '../src/config.js';
 
+// ESM-safe dirname (no require): a bare "a.js" stays in root, "handlers/a.js" nests.
+const dirname = (p) => p.split('/').slice(0, -1).join('/') || '.';
 async function fixture(files) {
   const root = await mkdtemp(join(tmpdir(), 'cfg-'));
   for (const [p, txt] of Object.entries(files)) {
-    await mkdir(join(root, require('node:path').dirname(p)), { recursive: true });
+    await mkdir(join(root, dirname(p)), { recursive: true });
     await writeFile(join(root, p), txt);
   }
   return root;
@@ -437,7 +439,7 @@ Note: the env card is intentionally built with `card(...)` (no parse), so it can
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `node --test test/config.test.js`
-Expected: PASS (6 tests). If `require` is unavailable (ESM test file), replace the `require('node:path').dirname(p)` line in the fixture with `const dirname = p.split('/').slice(0, -1).join('/') || '.';`.
+Expected: PASS (6 tests).
 
 Run: `npm test`
 Expected: 130 pass, 0 fail (124 + 6 new).
