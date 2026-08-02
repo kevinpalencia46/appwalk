@@ -59,7 +59,7 @@ const ROUTE_CODE_RE = /\b(?:app|router|route)\s*\.\s*(get|post|put|delete|patch|
 const DATA_RE = /(^|[\/._-])(db|database|models?|schema|store|query|repo|repository|sql|redis)([\/._-]|$)/i;
 const RENDER_RE = /(^|[\/._-])(component|view|page|layout)(s?)([\/._-]|$)/i;
 
-function isConfigName(name) {
+export function isConfigName(name) {
   return /(^package\.json$|\.json$|\.ya?ml$|\.toml$|^\.env|\.env$|\.config\.[jt]s$|^tsconfig\.|^vite\.config\.|^Dockerfile$|^Makefile$|^requirements\.txt$|^\.gitignore$|^eslint|^babel\.|^postcss\.|^tailwind\.|^next\.config\.)/.test(name);
 }
 
@@ -158,16 +158,22 @@ function scanChildren(p, text, root, byPath, handlerRefs) {
   return kids;
 }
 
-function roleOf({ path, name, rel, text, isStart }, handlerRefs) {
-  if (isStart) return 'entry';
+// Role of a file, shared by the flow map (src/flow.js) and the config screen's
+// clean-filing suggestions (src/config.js). Best-effort, name/path first, then a
+// code smell. flow.js passes isStart/isHandler from its scan context; config.js
+// calls it without them and gets a name/path/smell guess.
+export function classifyRole(name, path, rel, text = '', opts = {}) {
+  if (opts.isStart) return 'entry';
   if (isConfigName(name)) return 'config';
   if (ROUTE_FILE_RE.test(name) || ROUTE_CODE_RE.test(text || '')) return 'route';
-  if (handlerRefs.has(path) || HANDLER_NAME_RE.test(name) || CONTROLLER_RE.test(rel || '')) return 'handler';
-  // data/render roles are name/path-based only (a content sniff matches glossary
-  // prose like "Prisma" and misfiles a teaching module as a database layer).
+  if (opts.isHandler || HANDLER_NAME_RE.test(name) || CONTROLLER_RE.test(rel || '')) return 'handler';
   if (DATA_RE.test(rel || '')) return 'data';
   if (RENDER_RE.test(rel || '') || /\.(jsx|tsx|html)$/.test(path)) return 'render';
   return 'util';
+}
+
+function roleOf({ path, name, rel, text, isStart }, handlerRefs) {
+  return classifyRole(name, path, rel, text, { isStart, isHandler: handlerRefs.has(path) });
 }
 
 // Sort a node's children so the "main flow" reads first, then data, then generic
