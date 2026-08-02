@@ -26,6 +26,17 @@ test('educateText teaches lite vs pro vs local', () => {
   assert.match(s, /pro/i);
   assert.match(s, /local/i);
 });
+test('educateText expands install instructions + security warnings per tier', () => {
+  const s = educateText();
+  assert.match(s, /ollama pull/, 'local tier shows the real install command');
+  assert.match(s, /ollama\.com/, 'local tier links the download source');
+  assert.match(s, /never commit/, 'keys are secrets — never commit them');
+  assert.match(s, /gitignored/, 'says .env is gitignored for a reason');
+  assert.match(s, /4GB\+ free/, 'warns about Ollama RAM needs');
+  assert.match(s, /skip local models entirely/, 'tells when NOT to install');
+  assert.match(s, /phone\/tablet or a low-spec laptop/, 'low-spec devices should use the cloud lite tier');
+  assert.match(s, /AI_API_KEY/, 'lite tier shows the actual setup key name');
+});
 
 test('loadEnv reads appwalk\'s own .env and lets a project .env override', async () => {
   const { loadEnv } = await import('../src/ai/index.js');

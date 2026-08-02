@@ -54,7 +54,7 @@ export function render(state, data) {
     return i === state.cursor ? inv(line) : line;
   });
   const hasEnv = data.map.hasEnv;
-  return box(data.root.split('/').filter(Boolean).pop() || 'app', [...rows, ...(hasEnv ? ['', '  ▸ .env — location only'] : [])]);
+  return box(data.root.split('/').filter(Boolean).pop() || 'app', [...rows, ...(hasEnv ? ['', '  ▸ .env — location only', `     ${dim('why: holds secrets (API keys, passwords).')}`, `     ${dim('Keep it gitignored — commit it and anyone can read them.')}`] : [])]);
 }
 const fmt = (n) => n >= 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + ' MB' : n >= 1024 ? (n / 1024).toFixed(1) + ' KB' : n + ' B';
 

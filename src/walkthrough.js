@@ -26,25 +26,33 @@ export async function buildTour(map, stack) {
   const steps = [];
   const n = (p) => map.flat.find((x) => x.path.endsWith(p));
 
+  const nodeApp = stack.type === 'node';
+  const pythonApp = stack.type === 'python';
+  const staticApp = stack.type === 'static';
+  const kindWord = nodeApp ? 'Node.js' : pythonApp ? 'Python' : staticApp ? 'static site' : 'project I don\'t recognize yet';
+
   steps.push({
     title: 'What this app is',
-    body: `I can see ${map.flat.length} files. It looks like a ${stack.type === 'node' ? 'Node.js' : stack.type === 'python' ? 'Python' : stack.type === 'static' ? 'static site' : 'project I don\'t recognize yet'}.${gloss('dependency')}`,
+    body: `I can see ${map.flat.length} files. It looks like a ${kindWord} app.\n\nThink of it like a restaurant: ${nodeApp ? '`package.json` is the menu of what it can do, `src/` is the kitchen, and the run command is how you open the doors.' : pythonApp ? 'the main script is the kitchen, the folders are your ingredients, and the run command is how you open the doors.' : staticApp ? '`index.html` is the front door — everything it points to is the rest of the building.' : 'the files are the rooms, and the README is the sign out front.'}${gloss('dependency')}`,
     files: [],
+    tags: nodeApp ? ['peek'] : [],
   });
 
   steps.push({
     title: 'How it starts',
     body: stack.runCmd
-      ? `Run it with: ${stack.runCmd}.${stack.entry ? ` The entry point is ${stack.entry} — start reading there.` : ''}${gloss('deploy')}`
+      ? `Run it with: ${stack.runCmd}.${stack.entry ? ` The entry point is ${stack.entry} — start reading there.` : ''}\n\nThink of the run command as the ignition: it fires up everything your app needs in one go.${gloss('deploy')}`
       : 'I couldn\'t find a standard entry point. Try `appwalk tree` to explore, or add a README that says how to run it.',
     files: stack.entry ? [n(stack.entry)?.path].filter(Boolean) : [],
+    tags: stack.entry ? (nodeApp || pythonApp ? ['run'] : ['peek']) : [],
   });
 
   const dirs = [...new Set(map.flat.map((f) => f.dir))].filter((d) => d && d !== '.').slice(0, 12);
   steps.push({
     title: 'These are your folders',
-    body: dirs.length ? `Top-level folders: ${dirs.join(', ')}. Each one usually holds one job — code, config, assets.${gloss('schema')}` : 'Everything lives in the root folder for now — that\'s fine for a small app.',
+    body: dirs.length ? `Top-level folders: ${dirs.join(', ')}. Each one usually holds one job — code, config, assets. Think of folders as labeled shelves: you always know which drawer holds the thing you need.${gloss('schema')}` : 'Everything lives in the root folder for now — that\'s fine for a small app.',
     files: [],
+    tags: [],
   });
 
   const entry = n(stack.entry || 'index.js');
@@ -56,6 +64,7 @@ export async function buildTour(map, stack) {
       title: `A look inside ${basename(entry.path)}`,
       body: `This file is ${entry.lang}, ${entry.size} bytes.${text ? `\n\n${text}\n\n` : ''}${hist}${gloss('debugging')}`,
       files: [entry.path],
+      tags: nodeApp || pythonApp ? ['run'] : [],
     });
   }
 
@@ -63,12 +72,14 @@ export async function buildTour(map, stack) {
     title: 'Choosing your AI model (optional — free to skip)',
     body: educateText(),
     files: [],
+    tags: [],
   });
 
   steps.push({
     title: 'What to watch',
     body: `Next, run \`appwalk audit\` — it checks for leaked secrets, leftover clutter, duplicate files that could be merged, and risky dependencies. Every finding is explained with a fix.${gloss('API key')}`,
     files: [],
+    tags: [],
   });
   return steps;
 }

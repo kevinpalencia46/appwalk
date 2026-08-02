@@ -7,7 +7,7 @@
 // "open a term" screen for a beginner to get lost in. The list can be narrowed to
 // only the terms a session has seen so far (`data.seenTerms`) so a beginner is
 // never overwhelmed by the whole dictionary at once.
-import { box, b, dim, g, visLen, W, wrap } from './kit.js';
+import { box, b, dim, g, visLen, W, wrap, sideBySide } from './kit.js';
 import { TERMS, renderTerm } from '../glossary.js';
 
 export const init = (params = {}) => ({ cursor: 0, back: params.back || null });
@@ -18,21 +18,6 @@ const termList = (data) => {
   const terms = seen ? TERMS.filter((t) => seen.includes(t.term)) : TERMS;
   return { terms, seen };
 };
-
-// Stitch two box() frames side by side, padding the shorter one so the frames line up.
-function sideBySide(left, right) {
-  const l = String(left).split('\n');
-  const r = String(right).split('\n');
-  const n = Math.max(l.length, r.length);
-  const lw = Math.max(...l.map((x) => visLen(x)));
-  const rows = [];
-  for (let i = 0; i < n; i++) {
-    const a = l[i] ?? ' '.repeat(lw);
-    const b = r[i] ?? '';
-    rows.push(a + ' '.repeat(Math.max(0, lw - visLen(a))) + '  ' + b);
-  }
-  return rows.join('\n');
-}
 
 export function render(state, data = {}) {
   const { terms, seen } = termList(data);

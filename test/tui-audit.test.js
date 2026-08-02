@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { init, render, step, hints } from '../src/tui/audit.js';
+import { init, render, step, hints, askYourAI, currentFinding } from '../src/tui/audit.js';
 
 test('audit render shows the score line and a checklist, not a flat wall of findings', () => {
   const data = { findings: [
@@ -53,4 +53,43 @@ test('Enter on a clean category does nothing', () => {
 
 test('audit hints advertise the h-home key', () => {
   assert.match(hints, /h = home/);
+});
+
+test('a secret finding detail shows a copy-ready ask-your-AI prompt', () => {
+  const data = { findings: [
+    { file: 'a.js', line: 3, kind: 'stripe_live', category: 'secrets', snippet: 'sk_l…cdef', label: 'Stripe live secret key', fix: 'Rotate the key at the provider first.' },
+  ] };
+  let st = init();
+  st = step(st, 'enter', data);       // expand secrets category
+  st = step(st, 'enter', data);       // open the finding's detail
+  const s = render(st, data);
+  assert.match(s, /ask your AI/, 'detail shows the ask-your-AI line');
+  assert.match(s, /leaked stripe_live in a\.js:3/, 'the prompt names the finding');
+  assert.match(s, /rotating it, gitignoring \.env, and cleaning up/, 'the prompt asks to walk through the full fix');
+  assert.match(s, /copy it by eye/, 'always displayable so a beginner can copy by eye');
+});
+
+test('askYourAI builds a copy-ready prompt with kind, file, and line', () => {
+  assert.equal(
+    askYourAI({ kind: 'github', file: 'config.js', line: 7 }),
+    'I have a leaked github in config.js:7. Walk me through rotating it, gitignoring .env, and cleaning up.',
+  );
+  assert.equal(
+    askYourAI({ kind: 'private_key', file: 'id_rsa', line: 0 }),
+    'I have a leaked private_key in id_rsa. Walk me through rotating it, gitignoring .env, and cleaning up.',
+  );
+});
+
+test('currentFinding returns the open finding for the shell copy key, null outside detail', () => {
+  const data = { findings: [
+    { file: 'a.js', kind: 'stripe_live', category: 'secrets' },
+    { file: 'b.js', kind: 'aws', category: 'secrets' },
+  ] };
+  let st = init();
+  assert.equal(currentFinding(st, data), null, 'no detail open yet');
+  st = step(st, 'enter', data);       // secrets category
+  st = step(st, 'enter', data);       // first finding detail
+  assert.equal(currentFinding(st, data).kind, 'stripe_live');
+  st = step(st, 'enter', data);       // close detail
+  assert.equal(currentFinding(st, data), null);
 });

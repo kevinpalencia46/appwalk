@@ -7,8 +7,9 @@
 // absolute/other paths keep working.
 import { readFileSync } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
-import { box, g, b, dim } from './kit.js';
+import { box, g, b, dim, W, sideBySide } from './kit.js';
 import { highlight } from './highlight.js';
+import { aboutFile } from './about.js';
 const readFileSafeSync = (p) => { try { return readFileSync(p, 'utf8'); } catch { return null; } };
 
 export const init = (params = {}) => ({ file: params.file || null, line: 0, mode: params.mode || 'view', buf: '', pick: 0, back: params.back || null });
@@ -62,15 +63,40 @@ export function render(state, data) {
   const base = file.split('/').pop() || '';
   // Refuse every dotenv variant (.env, .env.local, .env.production, …), never just .env
   if (/^\.env(\.|$)/.test(base)) {
-    return box(base, ['', '  This is your .env file.', '', '  appwalk shows it as a location only —', '  values are never printed.', '', '  (press Enter to go back)']);
+    return box(base, [
+      '',
+      '  This is your .env file.',
+      '',
+      '  appwalk shows it as a location only —',
+      '  values are never printed.',
+      '',
+      '  why: this file holds secrets (API keys,',
+      '  passwords). Keep it gitignored — commit',
+      '  it and anyone can read them.',
+      '',
+      '  (press Enter to go back)',
+    ]);
   }
   const text = readFileSafeSync(file) ?? '';
-  const lang = data.map?.flat?.find((n) => n.path === file)?.lang || 'txt';
+  const node = data.map?.flat?.find((n) => n.path === file);
+  const lang = node?.lang || 'txt';
   // Page first, then highlight — never highlight unshown lines (huge files
   // would stall the keypress handler otherwise).
   const page = text.split('\n').slice(state.line, state.line + 18);
   const rows = page.map((l, i) => `  ${String(state.line + i + 1).padStart(3)}  ${highlight(l, lang)}`);
-  return box(file.split('/').pop() || file, rows, { width: 'full' });
+  const title = file.split('/').pop() || file;
+  // Right-hand "About this file" panel — teaches the file type, byte size, and for
+  // package.json its scripts + dependencies. It needs two side-by-side panes, so on
+  // a terminal too narrow to hold both 44-col minima + the gap it degrades to the
+  // file pane alone (the viewer never overflows).
+  const avail = W();
+  const aboutW = Math.max(30, Math.min(44, Math.floor(avail / 2) - 6));
+  const fileW = Math.max(44, avail - aboutW - 4);
+  if (fileW + 2 + aboutW <= avail) {
+    const aboutBox = box('About this file', aboutFile(node, aboutW - 8), { width: aboutW, min: 20 });
+    return sideBySide(box(title, rows, { width: fileW, min: 44 }), aboutBox);
+  }
+  return box(title, rows, { width: 'full' });
 }
 
 export function step(state, key, data) {

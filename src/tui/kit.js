@@ -74,6 +74,23 @@ export function sliceVis(s, max) {
   return out;
 }
 
+// Stitch two box() frames side by side, padding the shorter so the frames line up.
+// Shared by the glossary (term list + definition) and the viewer (file content +
+// "About this file" panel). Each frame must already fit its own width.
+export function sideBySide(left, right) {
+  const l = String(left).split('\n');
+  const r = String(right).split('\n');
+  const n = Math.max(l.length, r.length);
+  const lw = Math.max(...l.map((x) => visLen(x)));
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const a = l[i] ?? ' '.repeat(lw);
+    const b = r[i] ?? '';
+    rows.push(a + ' '.repeat(Math.max(0, lw - visLen(a))) + '  ' + b);
+  }
+  return rows.join('\n');
+}
+
 export function box(title, lines, { width = W(), min = 44 } = {}) {
   const w = boxWidth(width, min);
   const inner = w - 4;

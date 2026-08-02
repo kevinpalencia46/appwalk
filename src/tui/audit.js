@@ -2,7 +2,7 @@
 // Product-brief rules: findings render as a checklist with a score, never a wall of
 // red; every finding carries a fix shown right under it; the score + critical finding
 // stay in the upper-middle of the screen (score is the box title, first line inside).
-import { box, g, b, y, r, dim, sanitize } from './kit.js';
+import { box, g, b, y, r, dim, sanitize, wrap, W } from './kit.js';
 import { CATEGORIES, categoryOf, cleanCount } from '../audit/index.js';
 
 // Display labels for the five audit categories, secrets first (critical findings
@@ -20,7 +20,49 @@ const GLOSSARY_OF = {
 const glossaryFor = (f) => GLOSSARY_OF[f.kind] || 'refactoring';
 
 export const init = () => ({ cursor: 0, catCursor: 0, open: null, detail: null });
-export const hints = '↑↓ move · ENTER expand · h = home · q = quit';
+export const hints = '↑↓ move · ENTER expand · c = copy fix · h = home · q = quit';
+
+// A copy-ready "ask your AI" prompt for a finding, framed so a beginner can hand it
+// to any AI assistant (or type it themselves) and get walked through the fix.
+// Includes the finding's kind, file, and line so the AI has exactly what it needs.
+export const askYourAI = (f) =>
+  `I have a leaked ${f.kind} in ${f.file}${f.line ? ':' + f.line : ''}. Walk me through rotating it, gitignoring .env, and cleaning up.`;
+
+// The finding currently open in the detail view (pure, for the shell's `c` copy key).
+export const currentFinding = (state, data) => {
+  if (state.detail === null || state.open === null) return null;
+  const finds = (data?.findings) || [];
+  return (groupByCategory(finds)[state.open] || [])[state.detail] || null;
+};
+
+// Best-effort clipboard copy: try xclip then wl-copy, degrade silently if neither
+// exists (the ask-your-AI line is always on screen for copying by eye regardless).
+// The prompt is written to the child's stdin (xclip/wl-copy both read their payload
+// from stdin); spawn — never a shell — so nothing user-shaped reaches a shell string.
+export async function copyPrompt(prompt) {
+  const { spawn } = await import('node:child_process');
+  const candidates = [['xclip', ['-selection', 'clipboard']], ['wl-copy', []]];
+  for (const [cmd, args] of candidates) {
+    const ok = await new Promise((resolve) => {
+      let child;
+      try { child = spawn(cmd, args, { stdio: ['pipe', 'ignore', 'ignore'] }); }
+      catch { resolve(false); return; }
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; resolve(v); } };
+      const timer = setTimeout(() => { try { child.kill(); } catch {} finish(false); }, 3000);
+      timer.unref?.();
+      child.on('error', () => finish(false));
+      child.on('close', () => { clearTimeout(timer); finish(true); });
+      try {
+        child.stdin.on('error', () => {});
+        child.stdin.write(String(prompt));
+        child.stdin.end();
+      } catch { finish(false); }
+    });
+    if (ok) return true;
+  }
+  return false;
+}
 
 const groupByCategory = (finds) => {
   const groups = {};
@@ -57,6 +99,11 @@ function renderFindingRows(catKey, list, cursor) {
 
 function renderDetail(f) {
   if (!f) return box('Finding', ['  (no finding)']);
+  const prompt = askYourAI(f);
+  const inner = Math.max(20, Math.min(100, W()) - 20);
+  const promptLines = wrap(prompt, inner);
+  const fixText = sanitize(f.fix || 'Review this finding and remove the risk.');
+  const fixLines = wrap(fixText, inner);
   const lines = [
     `  ${b(f.kind)}  ${sanitize(f.file)}${f.line ? ':' + f.line : ''}`,
     '',
@@ -64,7 +111,13 @@ function renderDetail(f) {
     ...(f.snippet ? [`  snippet: ${g(sanitize(f.snippet))}`] : []),
     ...(f.other ? [`  duplicate of: ${sanitize(f.other)} (sim ${f.sim})`] : []),
     '',
-    `  ${y('FIX')}  ${sanitize(f.fix || 'Review this finding and remove the risk.')}`,
+    `  ${y('FIX')}  ${fixLines[0] || ''}`,
+    ...fixLines.slice(1).map((l) => `    ${l}`),
+    '',
+    `  ${g('ask your AI')}: ${promptLines[0] || ''}`,
+    ...promptLines.slice(1).map((l) => `    ${l}`),
+    '',
+    '  Press c to copy this prompt — or copy it by eye.',
     '',
     `  glossary: ${glossaryFor(f)} — press ${g('g')} to open`,
     '',

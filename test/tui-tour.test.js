@@ -39,6 +39,29 @@ test('tour step: g routes to the glossary screen', async () => {
   assert.deepEqual(step(init(), 'g', data, data.tour), { to: 'glossary' });
 });
 
+test('tour step: t routes to the try screen with an appwalk-chosen command', async () => {
+  const data = await makeData();
+  // step 0 of a node tour is tagged 'peek' → cat package.json, back to the tour
+  const res = step(init(), 't', data, data.tour);
+  assert.equal(res.to, 'try');
+  assert.equal(res.params.cmd, 'cat');
+  assert.deepEqual(res.params.args, ['package.json']);
+  assert.equal(res.params.back, 'tour');
+  // the step inside a code file suggests the run demo (a real program executing)
+  const codeStep = data.tour.findIndex((t) => t.tags?.includes('run'));
+  assert.ok(codeStep >= 0, 'a run-tagged step exists');
+  const res2 = step({ step: codeStep }, 't', data, data.tour);
+  assert.equal(res2.to, 'try');
+  assert.equal(res2.params.cmd, 'node');
+  assert.deepEqual(res2.params.args, ['-e', 'console.log(1+1)']);
+});
+
+test('tour render advertises the t try-it key when the stack has something to run', async () => {
+  const data = await makeData();
+  const s = render(init(), data);
+  assert.match(s, /t = try it|Press .t. to try it|try it/, 'a try-it hint is visible');
+});
+
 test('tour render sanitizes escape sequences out of the step body', async () => {
   const evil = 'legit start\x1b[2J\x1b[?25l tail';
   const s = render(init(), { tour: [{ title: 't', body: evil, files: [] }] });

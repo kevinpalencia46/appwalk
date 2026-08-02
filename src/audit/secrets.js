@@ -2,15 +2,20 @@ import { readFileSafe } from '../util.js';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+// Every secret-finding fix teaches the same rotation story: this key has been
+// committed, so treat it as LEAKED — gitignoring alone does nothing for a key that's
+// already in history. Rotate at the provider, store the new one in .env, then purge
+// old commits (git filter-repo). The provider + where-to-revoke vary per kind, but
+// the arc (leaked → rotate → .env → purge history) is identical.
 const PATTERNS = [
-  { kind: 'stripe_live', re: /sk_live_[A-Za-z0-9]{16,}/g, label: 'Stripe live secret key', fix: 'Rotate the key at Stripe first (revoke it), move it to .env (gitignored), then purge git history with `git filter-repo`.' },
-  { kind: 'aws', re: /AKIA[0-9A-Z]{16}/g, label: 'AWS access key', fix: 'Deactivate the key in AWS IAM, move it to .env (gitignored), then purge git history.' },
-  { kind: 'github', re: /ghp_[A-Za-z0-9]{20,}/g, label: 'GitHub personal access token', fix: 'Revoke the token at github.com/settings/tokens, move it to .env (gitignored), then purge git history.' },
-  { kind: 'google', re: /AIza[0-9A-Za-z\-_]{20,}/g, label: 'Google API key', fix: 'Rotate the key in Google Cloud Console, move it to .env (gitignored), then purge git history.' },
-  { kind: 'slack', re: /xox[baprs]-[0-9A-Za-z\-]{10,}/g, label: 'Slack token', fix: 'Rotate the token in Slack admin, move it to .env (gitignored), then purge git history.' },
-  { kind: 'private_key', re: /-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/g, label: 'private key block', fix: 'Rotate the key pair, remove the key file from the repo, and never commit private keys — load them from a gitignored path or a secrets manager.' },
-  { kind: 'db_url', re: /(postgres|mysql|mongodb)(\+srv)?:\/\/[^\s"']+:[^\s"']+@/g, label: 'database URL with credentials', fix: 'Rotate the database password, move the connection string to .env (gitignored), then purge git history.' },
-  { kind: 'generic_key', re: /["'](api[_-]?key|secret|password|token)["']\s*[:=]\s*["'][A-Za-z0-9_\-.]{12,}["']/gi, label: 'hardcoded key/password', fix: 'Move the key to .env (gitignored) and rotate it, since it was exposed in code.' },
+  { kind: 'stripe_live', re: /sk_live_[A-Za-z0-9]{16,}/g, label: 'Stripe live secret key', fix: 'This key has been committed — treat it as leaked. Rotate it: at Stripe, revoke it and issue a new one; put the new key in .env; then gitignore .env and purge history (git filter-repo) so old commits stop exposing it. Gitignoring alone does NOTHING for a key already committed.' },
+  { kind: 'aws', re: /AKIA[0-9A-Z]{16}/g, label: 'AWS access key', fix: 'This key has been committed — treat it as leaked. Rotate it: at AWS, deactivate it in IAM and create a new one; put the new key in .env; then gitignore .env and purge history (git filter-repo). Gitignoring alone does NOTHING for a key already committed.' },
+  { kind: 'github', re: /ghp_[A-Za-z0-9]{20,}/g, label: 'GitHub personal access token', fix: 'This token has been committed — treat it as leaked. Rotate it: revoke it at github.com/settings/tokens and create a new one; put the new token in .env; then gitignore .env and purge history (git filter-repo). Gitignoring alone does NOTHING for a token already committed.' },
+  { kind: 'google', re: /AIza[0-9A-Za-z\-_]{20,}/g, label: 'Google API key', fix: 'This key has been committed — treat it as leaked. Rotate it: in Google Cloud Console, revoke it and issue a new one; put the new key in .env; then gitignore .env and purge history (git filter-repo). Gitignoring alone does NOTHING for a key already committed.' },
+  { kind: 'slack', re: /xox[baprs]-[0-9A-Za-z\-]{10,}/g, label: 'Slack token', fix: 'This token has been committed — treat it as leaked. Rotate it: in Slack admin, revoke it and issue a new one; put the new token in .env; then gitignore .env and purge history (git filter-repo). Gitignoring alone does NOTHING for a token already committed.' },
+  { kind: 'private_key', re: /-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/g, label: 'private key block', fix: 'This key has been committed — treat it as leaked. Rotate it: generate a new key pair, remove this key file from the repo, and never commit private keys — load them from a gitignored path or a secrets manager. Then purge history (git filter-repo).' },
+  { kind: 'db_url', re: /(postgres|mysql|mongodb)(\+srv)?:\/\/[^\s"']+:[^\s"']+@/g, label: 'database URL with credentials', fix: 'This URL has been committed — treat the credentials as leaked. Rotate the database password, move the connection string to .env (gitignored), then purge history (git filter-repo). Gitignoring alone does NOTHING for credentials already committed.' },
+  { kind: 'generic_key', re: /["'](api[_-]?key|secret|password|token)["']\s*[:=]\s*["'][A-Za-z0-9_\-.]{12,}["']/gi, label: 'hardcoded key/password', fix: 'This key has been committed — treat it as leaked. Rotate it: at the service that issued it, revoke it and issue a new one; put the new key in .env; then gitignore .env and purge history (git filter-repo). Gitignoring alone does NOTHING for a key already committed.' },
 ];
 
 // Canonical sample/test values from vendor docs — never real secrets, so never findings.
@@ -46,7 +51,7 @@ export async function scanSecrets(map) {
     }
   }
   if (hasEnv) {
-    out.push({ file: '.env', line: 0, kind: 'env_in_git', category: 'secrets', snippet: '', label: '.env file is present in the project tree', fix: 'Add .env to .gitignore and run `git rm --cached .env` so it stops being tracked — then rotate any secrets it holds.' });
+    out.push({ file: '.env', line: 0, kind: 'env_in_git', category: 'secrets', snippet: '', label: '.env file is present in the project tree', fix: '.env holds secrets (API keys, passwords) — if it was ever committed, treat those as leaked. Rotate each key at the service that issued it, put the new ones in .env, add .env to .gitignore, run `git rm --cached .env` so it stops being tracked, then purge history (git filter-repo) so old commits stop exposing it. Gitignoring alone does NOTHING for a .env already committed.' });
   }
   return out;
 }

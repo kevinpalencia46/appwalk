@@ -10,8 +10,9 @@ import * as viewer from './viewer.js';
 import * as tree from './tree.js';
 import * as audit from './audit.js';
 import * as glossaryScreen from './glossary.js';
+import * as tryScreen from './try.js';
 
-export const SCREENS = { home, tour, viewer, tree, audit, glossary: glossaryScreen };
+export const SCREENS = { home, tour, viewer, tree, audit, glossary: glossaryScreen, try: tryScreen };
 
 // Virtual home routes that land on a real screen with params.
 const ROUTES = {
@@ -50,6 +51,14 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
         paint();
         return true;
       }
+      // Audit detail's `c` copies the "ask your AI" prompt (best-effort clipboard).
+      // I/O lives in the shell, so the audit screen's step stays pure.
+      if (screen.name === 'audit' && key === 'c') {
+        const f = audit.currentFinding(screen.state, data);
+        if (f) await audit.copyPrompt(audit.askYourAI(f));
+        paint();
+        return true;
+      }
       const cur = SCREENS[screen.name];
       const next = cur.step(screen.state, key, data);
       if (next?.done) return false;
@@ -62,7 +71,11 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
         const target = SCREENS[targetName];
         if (!target) return true;              // screen not built yet — stay put
         const params = { ...(route?.params || {}), ...(next.params || {}) };
-        screen = { name: targetName, state: { ...target.init(), ...params } };
+        // A screen init may be async (try.js runs its appwalk-chosen command on entry);
+        // await it and hand it the route params so the command can actually run.
+        let base = target.init(params);
+        if (base && typeof base.then === 'function') base = await base;
+        screen = { name: targetName, state: { ...base, ...params } };
       } else if (next) {
         // Instrumentation (product brief §0): reaching the choose-your-model step in the
         // tour is a key funnel signal — measured locally, no telemetry home.
