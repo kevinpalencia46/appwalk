@@ -12,11 +12,12 @@ export const ITEMS = [
   { to: 'ask', icon: '?', label: 'Ask about a file', desc: 'Explain any file plainly' },
   { to: 'glossary', icon: '»', label: 'Learn the words', desc: 'Plain-English definitions' },
   { to: 'flow', icon: '↦', label: 'See how it fits together', desc: 'Map how the pieces connect' },
+  { to: 'config', icon: '▣', label: 'Your setup', desc: 'See your settings & tidy the tree' },
 ];
 
-// Launcher grid: 6 buttons in a clean 3×2 grid (3 rows of 2 — no center straggler
-// like the old 5-item 2-2-1 layout). 2D arrows move between buttons, Enter activates.
-const COLS = 2;
+// Launcher grid: 7 buttons in a 3×3 grid — trailing empty cells (row 3, cols 1-2)
+// clamp instead of being reachable. 2D arrows move between buttons, Enter activates.
+const COLS = 3;
 const ROWS = Math.ceil(ITEMS.length / COLS);
 const idx = (r, c) => r * COLS + c;
 const ok = (r, c) => idx(r, c) >= 0 && idx(r, c) < ITEMS.length;
@@ -68,25 +69,24 @@ function buttonBox(item, active, width) {
 
 export function render(state, { root }) {
   const name = root.split('/').filter(Boolean).pop() || root;
-  const btnW = Math.floor((boxWidth('full') - 6) / 2);
+  const btnW = Math.floor((boxWidth('full') - 8) / 3);
   const buttons = ITEMS.map((it, i) => buttonBox(it, idx(state.r, state.c) === i, btnW).split('\n'));
-  const side = (a, b) => {
-    const n = Math.max(a.length, b.length);
+  const row3 = (a, b, c) => {
+    // Trailing empty cells are undefined columns, not blank lines — the last row
+    // (i=6) is row3(buttons[6], undefined, undefined). Optional chaining treats a
+    // missing column as all-blank, so the row still renders and the box aligns.
+    const n = Math.max(a?.length ?? 0, b?.length ?? 0, c?.length ?? 0);
     const out = [];
     for (let i = 0; i < n; i++) {
-      const x = a[i] ?? ' '.repeat(btnW);
-      const y = b[i] ?? ' '.repeat(btnW);
-      out.push(x + '  ' + y);
+      out.push(`${a?.[i] ?? ' '.repeat(btnW)}  ${b?.[i] ?? ' '.repeat(btnW)}  ${c?.[i] ?? ' '.repeat(btnW)}`);
     }
     return out;
   };
   const header = `   ${g('★ ' + name.toUpperCase())}${state.celebrate ? `   ${g('★ You did it!')}` : ''}`;
   const rows = [header, ''];
-  for (let i = 0; i < buttons.length; i += 2) {
+  for (let i = 0; i < buttons.length; i += 3) {
     if (i > 0) rows.push('');
-    // pairs lay out side by side; a lone trailing button centers under the columns
-    if (i + 1 < buttons.length) rows.push(...side(buttons[i], buttons[i + 1]));
-    else rows.push(...buttons[i].map((l) => ' '.repeat(Math.floor((btnW + 2) / 2)) + l));
+    rows.push(...row3(buttons[i], buttons[i + 1], buttons[i + 2]));
   }
   return box('appwalk', rows, { width: 'full' });
 }

@@ -4,6 +4,7 @@ import { buildMap } from '../tree.js';
 import { detectStack, buildTour } from '../walkthrough.js';
 import { allFindings } from '../audit/index.js';
 import { buildFlow } from '../flow.js';
+import { scanConfigFiles, suggestFiling } from '../config.js';
 import { inc as statsInc } from '../stats.js';
 import * as home from './home.js';
 import * as tour from './tour.js';
@@ -13,8 +14,9 @@ import * as audit from './audit.js';
 import * as glossaryScreen from './glossary.js';
 import * as tryScreen from './try.js';
 import * as flow from './flow.js';
+import * as config from './config.js';
 
-export const SCREENS = { home, tour, viewer, tree, audit, glossary: glossaryScreen, try: tryScreen, flow };
+export const SCREENS = { home, tour, viewer, tree, audit, glossary: glossaryScreen, try: tryScreen, flow, config };
 
 // Virtual home routes that land on a real screen with params.
 const ROUTES = {
@@ -30,6 +32,13 @@ const ensureFlow = async (data, depth) => {
   const d = Math.max(1, Math.min(flow.MAX_DEPTH, depth ?? 1));
   if (!data.flowCache[d]) data.flowCache[d] = await buildFlow(data.map, data.stack, { depth: d });
   return data.flowCache[d];
+};
+
+// The "Your setup" screen reads the config cards + filing suggestions. Built
+// lazily on first entry and memoized so home never stalls (the ensureFlow pattern).
+const ensureConfig = async (data) => {
+  if (!data.config) data.config = { files: (await scanConfigFiles(data.map, data.stack)).files, filing: await suggestFiling(data.map) };
+  return data.config;
 };
 
 export async function shell(root, { screen: start = 'home', map: preMap } = {}) {
@@ -119,6 +128,7 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
       // state exists before the pure render reads it. Covers both first entry
       // (home -> flow) and +/− depth changes.
       if (screen.name === 'flow') await ensureFlow(data, screen.state.depth || 1);
+      if (screen.name === 'config') await ensureConfig(data);
       paint();
       return true;
     },

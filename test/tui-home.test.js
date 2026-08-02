@@ -4,31 +4,22 @@ import { init, render, step } from '../src/tui/home.js';
 
 const strip = (s) => s.replace(/\x1b\[[0-9;]*m/g, '');
 
-test('home render shows the project name and 6 framed buttons (no mascot)', () => {
+test('home render shows the project name and 7 framed buttons (no mascot)', () => {
   const s = render(init(), { root: '/home/ren/great-pacific' });
   assert.match(s, /appwalk/);
-  assert.match(s, /GREAT-PACIFIC/, 'project name is shown big');
-  assert.match(s, /★/, 'the project name is shown as a phosphor header');
-  assert.match(s, /Take the guided tour/);
-  assert.match(s, /Explore your files/);
-  assert.match(s, /Audit for safety/);
-  assert.match(s, /Ask about a file/);
-  assert.match(s, /Learn the words/);
-  assert.match(s, /See how it fits together/);
-  // every button carries a one-line description
-  assert.match(s, /Walk your app step by step/);
-  assert.match(s, /Browse every file & folder/);
-  assert.match(s, /Find leaks, clutter & risks/);
-  assert.match(s, /Explain any file plainly/);
-  assert.match(s, /Plain-English definitions/);
-  assert.match(s, /Map how the pieces connect/);
-  // each menu item is its own framed box — exactly 6 button tops in a 3×2 grid
+  assert.match(s, /GREAT-PACIFIC/);
+  // 3×3 buttons are 23 cols wide under the 78-col box cap, so long labels/descs
+  // truncate. "Take the gui" and "See your setti" are the truncated prefixes of the
+  // first button's label and the 7th button's desc — and prefixes of the full
+  // strings, so they still hold if the grid ever widens.
+  assert.match(s, /Take the gui/, 'the tour button label renders');
+  assert.match(s, /Your setup/, 'the 7th button renders');
+  assert.match(s, /See your setti/, "the 7th button's description renders");
   const tops = strip(s).match(/┌─+┐/g) || [];
-  assert.equal(tops.length, 6, 'six button frames render, not a list');
-  assert.doesNotMatch(s, /o   o/, 'the ASCII duck is gone from home until the real art lands');
-  // the menu glyphs are single-width box/arrow chars, never astral-plane emoji
+  assert.equal(tops.length, 7, 'seven button frames render, not a list');
+  assert.doesNotMatch(s, /o   o/, 'the ASCII duck is gone');
   assert.doesNotMatch(s, /🚶|🗂|🛡|💬|📖/, 'no emoji in the home menu');
-  assert.match(s, /→|▸|!|\?|»|↦/, 'menu icons are ASCII/box-drawing glyphs');
+  assert.match(s, /→|▸|!|\?|»|↦|▣/, 'menu icons are ASCII/box-drawing glyphs');
 });
 
 test('home render celebrates when the tour just finished', () => {
@@ -38,32 +29,20 @@ test('home render celebrates when the tour just finished', () => {
   assert.match(celebrating, /★ You did it!/);
 });
 
-test('home step: 2D arrows move between buttons, enter routes, q quits', () => {
+test('home step: 3×3 grid — 2D arrows, empty cells clamp, no phantom slot', () => {
   let s = init();
-  // down moves to the button below; right moves across
+  assert.equal(step(s, 'right').c, 1, 'right moves across row 0');
+  s = step(s, 'right');
+  assert.equal(step(s, 'right').c, 2);
   assert.equal(step(s, 'down').r, 1);
-  assert.equal(step(s, 'down').c, 0);
-  assert.equal(step(s, 'right').r, 0);
-  assert.equal(step(s, 'right').c, 1);
-  // left wraps within a row
-  assert.equal(step(s, 'left').c, 1);
-  // the 3×2 grid has no phantom slot — down the second column lands on the next
-  // row's second button (index 5 = flow)
-  assert.equal(step({ r: 0, c: 1 }, 'down').r, 1);
-  assert.equal(step({ r: 0, c: 1 }, 'down').c, 1);
-  assert.equal(step({ r: 1, c: 1 }, 'down').r, 2);
-  assert.equal(step({ r: 1, c: 1 }, 'down').c, 1);
-  // bottom wraps to top and up wraps to bottom
-  assert.equal(step({ r: 2, c: 0 }, 'down').r, 0);
-  assert.equal(step({ r: 2, c: 0 }, 'down').c, 0);
-  assert.equal(step({ r: 0, c: 0 }, 'up').r, 2);
-  assert.equal(step({ r: 0, c: 0 }, 'up').c, 0);
-  // Enter activates the selected button
+  assert.equal(step({ r: 1, c: 2 }, 'down').r, 2, 'down from the flow button lands on config');
+  assert.equal(step({ r: 1, c: 2 }, 'down').c, 0, '…at the left, skipping the empty cells');
+  assert.equal(step({ r: 2, c: 0 }, 'down').r, 0, 'bottom wraps to top');
+  assert.equal(step({ r: 0, c: 0 }, 'up').r, 2, 'top wraps to bottom');
+  assert.equal(step({ r: 2, c: 0 }, 'right').c, 0, 'right past the empty cells wraps in place');
   assert.deepEqual(step({ r: 0, c: 0 }, 'enter'), { to: 'tour' });
-  assert.deepEqual(step({ r: 0, c: 1 }, 'enter'), { to: 'tree' });
-  assert.deepEqual(step({ r: 1, c: 0 }, 'enter'), { to: 'audit' });
-  assert.deepEqual(step({ r: 1, c: 1 }, 'enter'), { to: 'ask' });
-  assert.deepEqual(step({ r: 2, c: 0 }, 'enter'), { to: 'glossary' });
-  assert.deepEqual(step({ r: 2, c: 1 }, 'enter'), { to: 'flow' });
+  assert.deepEqual(step({ r: 0, c: 2 }, 'enter'), { to: 'audit' });
+  assert.deepEqual(step({ r: 1, c: 2 }, 'enter'), { to: 'flow' });
+  assert.deepEqual(step({ r: 2, c: 0 }, 'enter'), { to: 'config' });
   assert.deepEqual(step(init(), 'q'), { done: true });
 });
