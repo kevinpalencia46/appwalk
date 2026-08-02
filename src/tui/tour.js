@@ -34,7 +34,7 @@ function modelRows(models, state, width) {
 
 export function render(state, data, tour = data.tour) {
   const t = tour[state.step];
-  if (!t) return box('Guided tour', ['(nothing to show)']);
+  if (!t) return box('Guided tour', ['  (nothing to show) (FAQ: usage)']);
   const total = tour.length;
   const header = `Guided tour · step ${state.step + 1} of ${total}`;
   const w = boxWidth('full');
@@ -54,7 +54,7 @@ export function render(state, data, tour = data.tour) {
         ...(t.files?.[0] ? ['', `  (file: ${dim(t.files[0].split('/').pop())} — press ${g('o')} to open)`] : []),
         ...(s ? ['', `  Press ${g('t')} to try it — ${dim(s.label)}`] : []),
       ];
-  return box(header, rows, { width: 'full', height: 'full' });
+  return box(header, rows, { width: 'full' });
 }
 
 export function step(state, key, data, tour = data.tour) {

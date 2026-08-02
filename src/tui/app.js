@@ -4,7 +4,6 @@ import { buildMap } from '../tree.js';
 import { detectStack, buildTour } from '../walkthrough.js';
 import { allFindings } from '../audit/index.js';
 import { inc as statsInc } from '../stats.js';
-import { animateMascot } from './mascot.js';
 import * as home from './home.js';
 import * as tour from './tour.js';
 import * as viewer from './viewer.js';
@@ -36,19 +35,24 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
   };
   const name = SCREENS[start] ? start : 'home';
   let screen = { name, state: SCREENS[name].init() };
-  let mascotAnim = null;   // animation overlay handle — stopped before every repaint
   const paint = () => {
-    mascotAnim?.();
-    mascotAnim = null;
     const cur = SCREENS[screen.name];
     const hints = typeof cur.hints === 'function' ? cur.hints(screen.state, data) : cur.hints;
-    process.stdout.write('\x1b[2J\x1b[H' + cur.render(screen.state, data) + '\n' + bar(screen.name, hints));
-    // The mascot walks on the home screen only: a static pose inside the box plus
-    // an in-place animation overlay that rewrites just the mascot rows. Non-TTY
-    // (piped/CI) skips the overlay — the static pose is already in the box.
-    if (screen.name === 'home' && process.stdout.isTTY) {
-      mascotAnim = animateMascot(process.stdout, home.MASCOT_AT);
-    }
+    const body = cur.render(screen.state, data);
+    const n = body.split('\n').length;
+    const rows = process.stdout.rows || 24;
+    // The box hugs its content (short screens are compact). Anchor its vertical
+    // center ~1/3 down the screen so it isn't pinned to the top edge; clamp so it
+    // never pushes past the hint bar's row. Content-heavy screens are already capped
+    // at terminal height by box(), so a full box lands at row 1 and fills.
+    const center = Math.max(1, Math.floor(rows / 3));
+    const top = Math.max(1, Math.min(center - Math.floor(n / 2), rows - n - 1));
+    process.stdout.write(
+      '\x1b[2J\x1b[H' +
+      `\x1b[${top};1H` + body +
+      `\x1b[${rows};1H` + bar(screen.name, hints) +
+      `\x1b[${Math.min(top + n, rows - 1)};1H`,
+    );
   };
   paint(); // initial frame before entering the loop
   await mkLoop({
@@ -99,5 +103,4 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
       return true;
     },
   });
-  mascotAnim?.();   // leave with the cursor restored and no orphaned timers
 }

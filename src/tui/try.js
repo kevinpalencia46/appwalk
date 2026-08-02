@@ -86,7 +86,7 @@ export function render(state) {
     '',
     '  Enter to go back to the tour.',
   ];
-  return box('Try it', rows, { width: 'full', height: 'full' });
+  return box('Try it', rows, { width: 'full' });
 }
 
 export function step(state, key) {

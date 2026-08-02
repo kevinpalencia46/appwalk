@@ -1,5 +1,20 @@
 # appwalk — visual identity & mascot spec
 
+**Revision 2026-08-02 (Kevin course-correction, implemented in the aesthetic-round-2 batch):**
+- Boxes HUG content (one blank pad row inside top/bottom borders) and are anchored ~1/3
+  down the screen — NOT padded to full terminal height. Content-heavy screens (tree,
+  viewer, glossary) still pass `height: 'full'` and cap at terminal height with internal
+  scrolling; short screens (tour step, home, audit summary) stay compact. The hint bar is
+  always pinned to the bottom row.
+- The hint bar is dim green (`#1F9940`) foreground on black, NO solid background, only the
+  primary Enter key highlighted bright. (The old inverse-video bar rendered as magenta on
+  Kevin's recolored terminal.)
+- The ASCII duck is REMOVED from the home screen: `src/tui/mascot.js` is a no-op stub
+  (stable export names) until Kevin's Procreate art is specced. Amber is now reserved and
+  unused.
+- Home menu icons are single-width box/arrow glyphs (`→ ▸ ! ? »`), never astral-plane
+  emoji (the `??` locale issue).
+
 **Source:** Claude chat (Kevin's design pass) + Kevin's approval. Two deliverables, one
 character (a duck holding a lantern — rubber duck debugging reversed: the duck explains
 *your* code to *you*). This repo implements the TERMINAL side (ASCII mascot + palette +

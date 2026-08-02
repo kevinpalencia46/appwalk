@@ -56,15 +56,17 @@ test('box pads ANSI rows by visible width so colored and plain rows are equal, k
   const plain = '▶ ' + 'x'.repeat(40);
   const out = box('t', [colored, plain], { width });
   const lines = out.split('\n');
-  // borders are colored too, so strip ANSI first, then drop the border glyphs
+  // borders are colored too, so strip ANSI first, then drop the border glyphs.
+  // The compact box adds one blank pad row inside the top border, so the content
+  // rows start at index 2 (0 = top border, 1 = pad, 2 = colored, 3 = plain).
   const unbox = (s) => strip(s).replace(/^│ /, '').replace(/ │$/, '');
-  const rColored = unbox(lines[1]);
-  const rPlain = unbox(lines[2]);
+  const rColored = unbox(lines[2]);
+  const rPlain = unbox(lines[3]);
   assert.equal(visLen(rColored), inner, 'colored row fills the inner width in visible columns');
   assert.equal(visLen(rPlain), inner, 'plain row fills the inner width in visible columns');
   assert.equal(visLen(rColored), visLen(rPlain), 'colored and plain rows are the same visible width');
   // the truncated colored content (between the dim-green borders) still ends with a reset
-  const contentRaw = lines[1].replace(/^\x1b\[38;2;31;153;64m│ \x1b\[0m/, '').replace(/\x1b\[38;2;31;153;64m │\x1b\[0m$/, '');
+  const contentRaw = lines[2].replace(/^\x1b\[38;2;31;153;64m│ \x1b\[0m/, '').replace(/\x1b\[38;2;31;153;64m │\x1b\[0m$/, '');
   assert.ok(contentRaw.endsWith('\x1b[0m'), 'truncated colored row still ends with a color reset');
 });
 test('box borders are dim green and the title phosphor green', () => {
@@ -83,8 +85,10 @@ test('decodeKey handles arrows, enter, letters, split escapes, and CRLF', () => 
   assert.deepEqual(decodeKey('q'), { token: 'q', used: 1 });
   assert.deepEqual(decodeKey('\x1b'), { token: null, used: 1 });   // lone esc: consume, no token
 });
-test('bar renders a quiet inverted status line and highlights only ENTER', () => {
+test('bar renders a quiet dim-green status line and highlights only Enter', () => {
   const out = bar('tour', 'Press ENTER to continue · q quit');
-  assert.ok(out.startsWith('\x1b[2;7m'), 'bar starts with dim inverse video');
+  assert.ok(out.startsWith('\x1b[38;2;31;153;64m'), 'bar is dim green on black, no solid background');
   assert.ok(out.includes('\x1b[1;38;2;51;255;102mENTER\x1b[0m'), 'the primary key is bright phosphor inside the bar');
+  // every other hint stays muted — only the one primary key is bright
+  assert.ok(out.includes('\x1b[38;2;31;153;64m to continue · q quit\x1b[0m'), 'secondary keys stay dim green');
 });

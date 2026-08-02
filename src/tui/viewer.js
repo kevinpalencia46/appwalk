@@ -59,7 +59,7 @@ export function render(state, data) {
     return box('Ask about a file', rows, { width: 'full', height: 'full' });
   }
   const file = state.file;
-  if (!file) return box('File', ['  (nothing open)', '', '  Enter a path to view a file.'], { height: 'full' });
+  if (!file) return box('File', ['  (nothing open)', '', '  Enter a path to view a file. (FAQ: usage)']);
   const base = file.split('/').pop() || '';
   // Refuse every dotenv variant (.env, .env.local, .env.production, …), never just .env
   if (/^\.env(\.|$)/.test(base)) {
@@ -75,7 +75,7 @@ export function render(state, data) {
       '  it and anyone can read them.',
       '',
       '  (press Enter to go back)',
-    ], { height: 'full' });
+    ]);
   }
   const text = readFileSafeSync(file) ?? '';
   const node = data.map?.flat?.find((n) => n.path === file);

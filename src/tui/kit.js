@@ -96,23 +96,38 @@ export function sideBySide(left, right) {
   return rows.join('\n');
 }
 
-// A framed panel. Width is clamped to [min, 78]; `height: 'full'` pads the content
-// rows up to terminal height (leaving the bottom row for the hint bar) so the app
-// fills the screen and crops clean to 9:16 — no more black void under a small box.
+// A framed panel. Width is clamped to [min, 78]. The box HUGS its content: exactly
+// one blank row of padding inside the top and bottom borders, and never taller than
+// the terminal minus the hint bar's row — short screens (tour step, home, audit
+// summary) stay compact instead of drawing a ~40-row box around ~6 rows of text.
+// Content-heavy screens (tree, viewer) pass `height: 'full'` to fill the space up to
+// the same cap; a box that would overflow the terminal is truncated at the cap and
+// the screen's own scrolling reaches the rest. The shell positions the finished box
+// ~1/3 down the screen and pins the hint bar to the bottom row.
 // Borders are dim green, the title phosphor green: the box is the screen's frame.
 export function box(title, lines, { width = W(), min = 44, height } = {}) {
   const w = boxWidth(width, min);
   const inner = w - 4;
   const t0 = String(title);
   const t = t0.length > w - 6 ? t0.slice(0, w - 7) + '…' : t0;
-  const content = lines.map((l) => {
+  const row = (l) => {
     let s = String(l);
     if (visLen(s) > inner) s = sliceVis(s, inner);
     return dg('│ ') + s + ' '.repeat(Math.max(0, inner - visLen(s))) + dg(' │');
-  });
+  };
+  const blank = () => dg('│ ') + ' '.repeat(inner) + dg(' │');
+  // Content rows allowed between the borders: the whole box must stay within
+  // (terminal rows − 1) so the hint bar always owns the last row.
+  const maxRows = Math.max(3, (process.stdout.rows || 24) - 3);
+  let content = lines.map(row);
   if (height === 'full') {
-    const target = Math.max(content.length, (process.stdout.rows || 24) - 3);
-    while (content.length < target) content.push(dg('│ ') + ' '.repeat(inner) + dg(' │'));
+    // Content-heavy screens fill the space (padded up, then capped at the terminal).
+    while (content.length < maxRows) content.push(blank());
+    content = content.slice(0, maxRows);
+  } else {
+    // Compact: content + one blank pad row inside the top and bottom borders.
+    content = ['', ...content, ''];
+    if (content.length > maxRows) content = content.slice(0, maxRows);
   }
   const top = dg('┌─ ') + g(t) + dg(' ' + '─'.repeat(Math.max(0, w - visLen(t) - 5)) + '┐');
   const bottom = dg('└' + '─'.repeat(w - 2) + '┘');
@@ -124,12 +139,12 @@ export function bar(left, right) {
   const l = String(left), r2 = String(right);
   const pad = Math.max(0, w - l.length - r2.length);
   const line = (l + ' '.repeat(pad) + r2).slice(0, w);
-  // Quiet status bar: dim inverse background, muted text — the quietest row on the
-  // screen. Only the one primary key (ENTER) is highlighted bright phosphor green,
-  // so the single next action is what catches the eye.
-  const base = '\x1b[2;7m';
+  // Quiet status bar: dim-green foreground on black, NO solid background — the
+  // quietest thing on the screen. Only the one primary key (Enter) is bright
+  // phosphor green, so the single next action is what catches the eye.
+  const muted = '\x1b[38;2;31;153;64m';
   const bright = '\x1b[1;38;2;51;255;102m';
-  return base + line.replace(/ENTER/g, `${bright}ENTER\x1b[0m${base}`) + '\x1b[0m';
+  return muted + line.replace(/\bEnter\b/i, (m) => `${bright}${m}\x1b[0m${muted}`) + '\x1b[0m';
 }
 
 export function decodeKey(buf) {

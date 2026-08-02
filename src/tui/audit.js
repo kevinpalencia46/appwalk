@@ -98,7 +98,7 @@ function renderFindingRows(catKey, list, cursor) {
 }
 
 function renderDetail(f) {
-  if (!f) return box('Finding', ['  (no finding)'], { height: 'full' });
+  if (!f) return box('Finding', ['  (no finding) (FAQ: audit)']);
   const prompt = askYourAI(f);
   const inner = Math.max(20, Math.min(100, W()) - 20);
   const promptLines = wrap(prompt, inner);
@@ -123,7 +123,7 @@ function renderDetail(f) {
     '',
     '  (Enter to go back)',
   ];
-  return box('Finding', lines, { height: 'full' });
+  return box('Finding', lines, { width: 'full' });
 }
 
 export function render(state, data) {
@@ -135,9 +135,9 @@ export function render(state, data) {
     return renderDetail((groups[state.open] || [])[state.detail]);
   }
   if (state.open !== null) {
-    return box(title, renderFindingRows(state.open, groups[state.open] || [], state.cursor), { height: 'full' });
+    return box(title, renderFindingRows(state.open, groups[state.open] || [], state.cursor), { width: 'full' });
   }
-  return box(title, renderCategoryRows(groups, state.catCursor), { height: 'full' });
+  return box(title, renderCategoryRows(groups, state.catCursor), { width: 'full' });
 }
 
 export function step(state, key, data) {
