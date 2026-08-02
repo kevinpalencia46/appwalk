@@ -7,6 +7,7 @@ test('aboutFile on a package.json node teaches scripts and dependencies', () => 
   const lines = aboutFile({ name: 'package.json', lang: 'json', size: 408 });
   assert.ok(lines.some((l) => /scripts/i.test(l)), 'mentions scripts');
   assert.ok(lines.some((l) => /dependencies/i.test(l)), 'mentions dependencies');
+  assert.ok(lines.some((l) => /dependencies \(deps\)/.test(l)), 'links the short form "deps" to dependencies');
   assert.ok(lines.some((l) => /ID card/i.test(l)), 'explains what a settings file is');
   assert.ok(lines.some((l) => /sticky note/i.test(l)), 'explains a small byte size in plain words');
 });

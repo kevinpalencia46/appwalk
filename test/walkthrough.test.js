@@ -24,6 +24,17 @@ test('detectStack falls back to unknown gracefully', async () => {
   assert.equal(detectStack(map).type, 'unknown');
 });
 
+test('unknown-stack tour links "config" to "configuration (config)"', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'walk-config-'));
+  await writeFile(join(root, 'random.txt'), 'hi');
+  await mkdir(join(root, 'notes'), { recursive: true });
+  await writeFile(join(root, 'notes', 'a.txt'), 'x');
+  const map = await buildMap(root);
+  const tour = await buildTour(map, detectStack(map));
+  const folders = tour.find((s) => s.title === 'These are your folders');
+  assert.match(folders.body, /configuration \(config\)/, 'the short form "config" is linked to its full form');
+});
+
 test('buildTour returns a multi-step tour ending in "what to watch"', async () => {
   const root = await mkdtemp(join(tmpdir(), 'walk-tour-'));
   await writeFile(join(root, 'package.json'), '{"name":"x","scripts":{"dev":"node src/index.js"}}');
@@ -59,6 +70,7 @@ test('buildTour teaches the whole tour one concept at a time, never cramming', a
   assert.match(tour[1].body, /ID card/);
   assert.match(tour[1].body, /scripts/i);
   assert.match(tour[1].body, /dependencies/i);
+  assert.match(tour[1].body, /dependencies \(deps\)/, 'the short form "deps" is linked to its full form');
   assert.ok(tour[1].body.split('\n\n').length >= 4, 'ideas are separated by blank lines');
 
   // step 3: folders — src introduced as SOURCE with the restaurant metaphor; the

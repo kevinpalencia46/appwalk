@@ -39,6 +39,11 @@ test('renderTerm ends with the ask-your-AI prompt for the selected term', () => 
   assert.ok(s.indexOf('When you talk to your AI') > s.indexOf('When you\'d use it'));
 });
 
+test('the dependency entry links the short form "deps" to its full form', () => {
+  const dep = lookup('dependency');
+  assert.match(dep.why, /dependencies \(deps\)/, 'the glossary itself teaches deps = dependencies');
+});
+
 test('findMatches finds terms in prose', () => {
   const m = findMatches('I want to refactor my auth flow');
   assert.ok(m.some((t) => t.includes('refactor')));
