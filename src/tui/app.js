@@ -75,7 +75,9 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
         return true;
       }
       const cur = SCREENS[screen.name];
-      const next = cur.step(screen.state, key, data);
+      // cur.step is awaited because the try screen's step is async (Enter actually
+      // runs the typed command); every other screen's step is sync and awaits trivially.
+      const next = await cur.step(screen.state, key, data);
       if (next?.done) return false;
       if (next?.to) {
         if (next.to === 'audit' && !data.findings) {
@@ -86,8 +88,7 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
         const target = SCREENS[targetName];
         if (!target) return true;              // screen not built yet — stay put
         const params = { ...(route?.params || {}), ...(next.params || {}) };
-        // A screen init may be async (try.js runs its appwalk-chosen command on entry);
-        // await it and hand it the route params so the command can actually run.
+        // A screen init may be async; await it and hand it the route params.
         let base = target.init(params);
         if (base && typeof base.then === 'function') base = await base;
         screen = { name: targetName, state: { ...base, ...params } };
