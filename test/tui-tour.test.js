@@ -41,12 +41,13 @@ test('tour step: g routes to the glossary screen', async () => {
 
 test('tour step: t routes to the try screen with an appwalk-chosen command', async () => {
   const data = await makeData();
-  // step 0 of a node tour is tagged 'peek' → cat package.json, back to the tour
-  const res = step(init(), 't', data, data.tour);
+  // step 1 of a node tour is tagged 'peek' → cat package.json, back to the tour
+  const res = step({ step: 1 }, 't', data, data.tour);
   assert.equal(res.to, 'try');
   assert.equal(res.params.cmd, 'cat');
   assert.deepEqual(res.params.args, ['package.json']);
   assert.equal(res.params.back, 'tour');
+  assert.equal(res.params.tourStep, 1, 'the try screen remembers which tour step it came from');
   // the step inside a code file suggests the run demo (a real program executing)
   const codeStep = data.tour.findIndex((t) => t.tags?.includes('run'));
   assert.ok(codeStep >= 0, 'a run-tagged step exists');
@@ -58,8 +59,33 @@ test('tour step: t routes to the try screen with an appwalk-chosen command', asy
 
 test('tour render advertises the t try-it key when the stack has something to run', async () => {
   const data = await makeData();
+  // step 1 (Your package.json) is the peek step → advertises t
+  const s = render({ step: 1 }, data);
+  assert.match(s, /Press .+ to try it/, 'a try-it hint is visible');
+  assert.match(s, /type a command of your own/, 'the try hint calmly invites typing your own');
+});
+
+test('tour step: ← or b returns to the previous step, clamped at 0', async () => {
+  const data = await makeData();
+  assert.equal(step({ step: 2 }, 'b', data, data.tour).step, 1);
+  assert.equal(step({ step: 2 }, 'left', data, data.tour).step, 1);
+  assert.equal(step({ step: 0 }, 'b', data, data.tour).step, 0, 'clamped at the first step');
+  assert.equal(step({ step: 0 }, 'left', data, data.tour).step, 0);
+  // the model picker step also backs out cleanly
+  const modelStep = data.tour.findIndex((s) => s.models);
+  assert.equal(step({ step: modelStep }, 'b', data, data.tour).step, modelStep - 1);
+  assert.equal(step({ step: modelStep }, 'left', data, data.tour).step, modelStep - 1);
+  // returning from the try box resumes at the step it came from
+  assert.equal(init({ resume: 2 }).step, 2);
+  assert.equal(init({}).step, 0);
+});
+
+test('tour render ends a step with a calm glossary invitation, not a mid-blurb list', async () => {
+  const data = await makeData();
   const s = render(init(), data);
-  assert.match(s, /t = try it|Press .t. to try it|try it/, 'a try-it hint is visible');
+  assert.match(s, /Any word you don't know — press g/);
+  assert.doesNotMatch(s, /run `appwalk glossary`/, 'the old mid-blurb glossary line is gone');
+  assert.doesNotMatch(s, /dependency/, 'step 1 no longer crams the word dependency');
 });
 
 test('tour model picker: renders 4 rows, arrows move, Enter expands, Enter again advances', async () => {

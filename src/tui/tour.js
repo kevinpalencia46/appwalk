@@ -1,16 +1,17 @@
 // src/tui/tour.js
-import { box, boxWidth, g, dg, dim, sanitize, wrap } from './kit.js';
+import { box, boxWidth, g, dg, dim, sanitize, wrap, wrapParas } from './kit.js';
 import { suggest } from './try.js';
 
-export const init = () => ({ step: 0 });
+export const init = (params = {}) => ({ step: params.resume ?? 0 });
 // Dynamic so the bar never advertises 't = try it' on a step whose stack has nothing
 // safe to run (suggest() returns null) — a no-op key advertised is a dead end.
 // The choose-your-model step is a picker, so its hints describe the picker instead.
+// `b` and ← go back a step; `h` still means home (handled globally in the shell).
 export const hints = (state, data) => {
   const t = data?.tour?.[state?.step];
-  if (t?.models) return '↑↓ choose a model · ENTER expand detail · ENTER again to continue · h = home · q = quit';
+  if (t?.models) return '↑↓ choose a model · ENTER expand detail · ENTER again continues · ←/b back · h = home · q = quit';
   const s = t ? suggest(data?.stack, t) : null;
-  return 'Press ENTER to continue · o = open the file · g = glossary' + (s ? ' · t = try it' : '') + ' · h = home';
+  return '← back · Enter next · o = open · g = glossary' + (s ? ' · t = try it' : '') + ' · h = home';
 };
 
 // A model row + its expanded setup detail. `good at` and `setup` wrap so a row
@@ -43,6 +44,8 @@ export function render(state, data, tour = data.tour) {
     ? [
         `  ${g('▶')}  ${g(t.title)}`,
         '',
+        ...wrapParas(sanitize(t.body || ''), w - 10).map((l) => `  ${l}`),
+        '',
         ...modelRows(t.models, state, w - 10),
         '',
         `  ${dim('Press ENTER to expand a model — press it again to keep walking.')}`,
@@ -50,9 +53,12 @@ export function render(state, data, tour = data.tour) {
     : [
         `  ${g('▶')}  ${g(t.title)}`,
         '',
-        ...wrap(sanitize(t.body), w - 10).map((l) => `  ${l}`),
+        ...wrapParas(sanitize(t.body), w - 10).map((l) => `  ${l}`),
         ...(t.files?.[0] ? ['', `  (file: ${dim(t.files[0].split('/').pop())} — press ${g('o')} to open)`] : []),
-        ...(s ? ['', `  Press ${g('t')} to try it — ${dim(s.label)}`] : []),
+        ...(s?.explain ? ['', ...wrap(s.explain, w - 10).map((l) => `  ${dim(l)}`)] : []),
+        ...(s ? ['', `  Press ${g('t')} to try it — or type a command of your own.`] : []),
+        '',
+        `  ${dim('Any word you don\'t know — press g and I\'ll explain it.')}`,
       ];
   return box(header, rows, { width: 'full' });
 }
@@ -71,10 +77,13 @@ export function step(state, key, data, tour = data.tour) {
       }
       return { ...state, modelDetail: state.modelSel ?? 0 };
     }
+    if (key === 'left' || key === 'b') return { ...state, step: Math.max(0, state.step - 1), modelDetail: null };
     if (key === 'g') return { to: 'glossary' };
     if (key === 'q') return { done: true };
     return state;
   }
+  // ← or b returns to the previous step (clamped at 0) — the consistent "back" affordance.
+  if (key === 'left' || key === 'b') return { ...state, step: Math.max(0, state.step - 1) };
   if (key === 'enter') {
     if (state.step >= tour.length - 1) return { to: 'home', params: { celebrate: true } };
     return { ...state, step: state.step + 1 };
@@ -86,7 +95,7 @@ export function step(state, key, data, tour = data.tour) {
   }
   if (key === 't') {
     const s = suggest(data?.stack, tour[state.step]);
-    if (s) return { to: 'try', params: { ...s, back: 'tour' } };
+    if (s) return { to: 'try', params: { ...s, back: 'tour', tourStep: state.step } };
     return state;
   }
   if (key === 'g') return { to: 'glossary' };   // the hints advertise it; make it real
