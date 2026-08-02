@@ -14,11 +14,11 @@ export function runCommand(stack) {
 
 export function monitor(root, stack, { explain } = {}) {
   const run = runCommand(stack);
-  if (!run) { console.log('monitor: no run command known for this project. Try `appwalk walk` first.'); return Promise.resolve(); }
+  if (!run) { console.log('monitor: no run command known for this project. Try `appwalk walk` first. (FAQ: monitor)'); return Promise.resolve(); }
   console.log(`monitor: running \`${run.cmd} ${run.args.join(' ')}\` (Ctrl-C to stop)`);
   return new Promise((resolve) => {
     const child = spawn(run.cmd, run.args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
-    child.on('error', (e) => { console.log('monitor: failed to start: ' + e.message); resolve(); });
+    child.on('error', (e) => { console.log('monitor: failed to start: ' + e.message + ' (FAQ: monitor)'); resolve(); });
     const onLine = (line) => {
       process.stdout.write(line + '\n');
       if (isCrash(line)) {

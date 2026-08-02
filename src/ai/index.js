@@ -62,7 +62,7 @@ export async function explain(prompt, { lite = true, root = process.cwd(), env }
     return { text: res.text, model: tier.id, tokens, costUsd: costFor(costProvider, lite ? 'lite' : 'pro', tokens) };
   } catch (e) {
     return {
-      text: `[AI call failed: ${e.message} — check AI_PROVIDER/AI_API_KEY in .env. The core appwalk modes work without AI.]`,
+      text: `[AI call failed: ${e.message} — check AI_PROVIDER/AI_API_KEY in .env. The core appwalk modes work without AI. (FAQ: ai-failed)]`,
       model: tier.id, tokens: estimated, costUsd: 0,
     };
   }

@@ -53,14 +53,14 @@ if (mode === 'doctor') {
     console.log('\n' + issue);
   }
 } else if (mode === 'tree') {
-  const m = await map(); if (!m.flat.length) { console.log('appwalk: no files found.'); process.exit(0); }
+  const m = await map(); if (!m.flat.length) { console.log('appwalk: no files found. (FAQ: no-files-found)'); process.exit(0); }
   await shell(root, { screen: 'tree', map: m });
   process.exit(0);
 } else if (mode === 'glossary') {
   const q = process.argv[3]; if (!q) { console.log(TERMS.map((t) => t.term).join('\n')); }
-  else { const e = lookup(q); console.log(e ? renderTerm(e) : `no term "${q}". Try: appwalk glossary`); }
+  else { const e = lookup(q); console.log(e ? renderTerm(e) : `no term "${q}". Try: appwalk glossary (FAQ: glossary)`); }
 } else if (mode === 'explain') {
-  const file = process.argv[3]; if (!file) { console.log('usage: appwalk explain <file>'); process.exit(0); }
+  const file = process.argv[3]; if (!file) { console.log('usage: appwalk explain <file> (FAQ: usage)'); process.exit(0); }
   statsInc('ran_explain');
   const text = await readFileSafe(join(root, file));
   const r = await explain(`Explain this file for a beginner:\n\n${(text || '').slice(0, 6000)}`, { lite: true });
@@ -92,4 +92,4 @@ if (mode === 'doctor') {
   statsInc(providerAvailable() ? 'configured_key' : 'skipped_key');
   await shell(root);
   process.exit(0);
-} else { console.log(`appwalk: unknown mode "${mode}"\n\n${HELP}`); }
+} else { console.log(`appwalk: unknown mode "${mode}" (FAQ: usage)\n\n${HELP}`); }
