@@ -61,10 +61,13 @@ test('buildTour teaches the whole tour one concept at a time, never cramming', a
   assert.match(tour[1].body, /dependencies/i);
   assert.ok(tour[1].body.split('\n\n').length >= 4, 'ideas are separated by blank lines');
 
-  // step 3: folders — src introduced as SOURCE with the restaurant metaphor
+  // step 3: folders — src introduced as SOURCE with the restaurant metaphor; the
+  // folder names travel as data (`folders`) so the renderer can lay them out, not
+  // as a comma list inside the prose
   assert.equal(tour[2].title, 'These are your folders');
   assert.match(tour[2].body, /src stands for SOURCE/i);
   assert.match(tour[2].body, /kitchen/);
+  assert.ok(Array.isArray(tour[2].folders), 'folders travel as data, not a comma wall');
 
   // the rest of the tour is short and spaced too
   assert.equal(tour[3].title, 'How it starts');

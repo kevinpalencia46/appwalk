@@ -1,5 +1,5 @@
 // src/tui/tour.js
-import { box, boxWidth, g, dg, dim, sanitize, wrap, wrapParas } from './kit.js';
+import { box, boxWidth, g, dg, dim, sanitize, wrap, wrapParas, visLen } from './kit.js';
 import { suggest } from './try.js';
 
 export const init = (params = {}) => ({ step: params.resume ?? 0 });
@@ -15,7 +15,9 @@ export const hints = (state, data) => {
 };
 
 // A model row + its expanded setup detail. `good at` and `setup` wrap so a row
-// never exceeds the ~74-column content cap.
+// never exceeds the ~74-column content cap. Collapsed rows stay compact so the
+// 4-row picker fits a small terminal; only the Enter-expanded detail gets
+// breathing room — blank lines between the cost / good-at / setup sections.
 function modelRows(models, state, width) {
   const sel = state.modelSel ?? 0;
   const expanded = state.modelDetail === sel;
@@ -24,13 +26,38 @@ function modelRows(models, state, width) {
   models.forEach((m, i) => {
     const cursor = i === sel ? g('▶') : ' ';
     rows.push(`  ${cursor}  ${g(m.label.padEnd(labelW))} ${dg('— ' + m.cost)}`);
-    rows.push(...wrap(`good at: ${m.goodAt}`, width - 8).map((l) => `        ${dim(l)}`));
     if (i === sel && expanded) {
       rows.push('');
+      rows.push(...wrap(`good at: ${m.goodAt}`, width - 8).map((l) => `        ${dim(l)}`));
+      rows.push('');
       rows.push(...wrap(`setup: ${m.setup}`, width - 8).map((l) => `        ${dg(l)}`));
+      rows.push('');
+    } else {
+      rows.push(...wrap(`good at: ${m.goodAt}`, width - 8).map((l) => `        ${dim(l)}`));
     }
   });
   return rows;
+}
+
+// "These are your folders" step: one folder per line, but more than 8 top-level
+// folders wrap into a 2-column grid so it never reads as a long single list. The
+// grid falls back to one column when the terminal is too narrow to hold two.
+function folderGrid(dirs, width) {
+  const cell = (d) => `  ${dim('·')}  ${g(d)}`;
+  if (dirs.length <= 8) return dirs.map(cell);
+  const half = Math.ceil(dirs.length / 2);
+  const left = dirs.slice(0, half);
+  const right = dirs.slice(half);
+  const colW = Math.max(...left.map((d) => visLen(cell(d)))) + 4;
+  const maxW = Math.max(20, width);
+  if (colW * 2 > maxW) return dirs.map(cell);
+  const out = [];
+  for (let i = 0; i < half; i++) {
+    const l = cell(left[i]);
+    const r = right[i] ? cell(right[i]) : '';
+    out.push(l + ' '.repeat(Math.max(0, colW - visLen(l))) + r);
+  }
+  return out;
 }
 
 export function render(state, data, tour = data.tour) {
@@ -56,6 +83,7 @@ export function render(state, data, tour = data.tour) {
         `  ${g('▶')}  ${g(t.title)}`,
         '',
         ...wrapParas(sanitize(t.body), w - 10).map((l) => `  ${l}`),
+        ...(t.folders && t.folders.length ? ['', ...folderGrid(t.folders, w - 10)] : []),
         ...(t.files?.[0] ? ['', `  (file: ${dim(t.files[0].split('/').pop())} — press ${g('o')} to open)`] : []),
         ...(s?.explain ? ['', ...wrap(s.explain, w - 10).map((l) => `  ${dim(l)}`)] : []),
         ...(s ? ['', `  Press ${g('t')} to try it — or type a command of your own.`] : []),

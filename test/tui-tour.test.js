@@ -1,7 +1,7 @@
 // test/tui-tour.test.js
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildMap } from '../src/tree.js';
@@ -124,4 +124,53 @@ test('tour render sanitizes escape sequences out of the step body', async () => 
   assert.ok(!s.includes('\x1b[?25l'), 'cursor-hide escape leaked into the tour body');
   assert.ok(s.includes('legit start'));
   assert.ok(s.includes('tail'));
+});
+
+test('tour folders step renders one folder per line (not a comma wall)', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'tour-fold-'));
+  await writeFile(join(root, 'package.json'), '{"name":"x"}');
+  for (const n of ['src', 'public', 'assets']) {
+    await mkdir(join(root, n), { recursive: true });
+    await writeFile(join(root, n, 'keep.txt'), 'x');
+  }
+  const map = await buildMap(root);
+  const stack = detectStack(map);
+  const tour = await buildTour(map, stack);
+  const t = tour.find((s) => s.title === 'These are your folders');
+  assert.deepEqual([...t.folders].sort(), ['assets', 'public', 'src'], 'folders travel as data, not prose');
+  assert.doesNotMatch(t.body, /src, public, assets/, 'no comma list in the prose body');
+  const s = render({ step: tour.indexOf(t) }, { root, map, stack, tour });
+  const oneDot = s.split('\n').filter((l) => (l.match(/·/g) || []).length === 1);
+  assert.ok(oneDot.length >= 3, 'three folders each sit on their own line');
+});
+
+test('tour folders step wraps 10+ folders into a 2-column grid', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'tour-grid-'));
+  await writeFile(join(root, 'package.json'), '{"name":"x"}');
+  for (const n of ['src', 'public', 'lib', 'components', 'pages', 'utils', 'assets', 'hooks', 'styles', 'scripts']) {
+    await mkdir(join(root, n), { recursive: true });
+    await writeFile(join(root, n, 'keep.txt'), 'x');
+  }
+  const map = await buildMap(root);
+  const stack = detectStack(map);
+  const tour = await buildTour(map, stack);
+  const t = tour.find((s) => s.title === 'These are your folders');
+  assert.ok(t.folders.length === 10);
+  const s = render({ step: tour.indexOf(t) }, { root, map, stack, tour });
+  const twoDot = s.split('\n').filter((l) => (l.match(/·/g) || []).length === 2);
+  assert.ok(twoDot.length >= 5, `10 folders wrap into ~5 two-column rows, got ${twoDot.length}`);
+});
+
+test('tour model picker keeps breathing room between cost / good-at / setup', async () => {
+  const data = await makeData();
+  const t = data.tour.findIndex((s) => s.models);
+  const s = render({ step: t, modelSel: 0, modelDetail: 0 }, data);
+  const strip = (l) => l.replace(/\x1b\[[0-9;]*m/g, '');
+  // blank content rows look like "│   │" once ANSI is stripped
+  const blankRows = s.split('\n').filter((l) => /^│\s+│$/.test(strip(l)));
+  assert.ok(blankRows.length >= 2, 'cost / good-at / setup sections are separated by blank rows');
+  // and the sections themselves read in order: cost, then good at, then setup
+  const text = strip(s);
+  assert.ok(text.indexOf('cheap & fast') < text.indexOf('good at:'), 'cost comes before good-at');
+  assert.ok(text.indexOf('good at:') < text.indexOf('setup:'), 'good-at comes before setup');
 });

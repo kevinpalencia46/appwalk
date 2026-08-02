@@ -111,7 +111,10 @@ export async function buildTour(map, stack) {
   }
 
   // Step 3 — the folders. Introduces src properly: src stands for SOURCE, and the
-  // whole app as a restaurant (menu / kitchen / dining room).
+  // whole app as a restaurant (menu / kitchen / dining room). The folder list itself
+  // lives in `folders` (not the prose) so the tour renderer can lay it out as a
+  // one-per-line list — a 2-column grid when there are many — instead of a comma
+  // wall. Short form "config" is introduced as "configuration (config)".
   const dirs = [...new Set(map.flat.map((f) => f.dir))].filter((d) => d && d !== '.').slice(0, 12);
   const hasSrc = dirs.includes('src');
   steps.push({
@@ -119,14 +122,15 @@ export async function buildTour(map, stack) {
     body: !dirs.length
       ? 'Everything lives in the root folder for now — that\'s fine for a small app.'
       : hasSrc
-        ? `src stands for SOURCE — it\'s where your actual code lives.\n\nThink of the whole app as a restaurant: package.json is the menu, src is the kitchen, the public folder is the dining room.\n\nYour top-level folders: ${dirs.join(', ')}.`
+        ? `src stands for SOURCE — it\'s where your actual code lives.\n\nThink of the whole app as a restaurant: package.json is the menu, src is the kitchen, the public folder is the dining room.\n\nYour top-level folders:`
         : nodeApp
-          ? `Think of the whole app as a restaurant: package.json is the menu, and the folders are labeled shelves — each holds one job.\n\nYour top-level folders: ${dirs.join(', ')}.`
+          ? `Think of the whole app as a restaurant: package.json is the menu, and the folders are labeled shelves — each holds one job.\n\nYour top-level folders:`
           : pythonApp
-            ? `Think of the whole app as a restaurant: the main script is the kitchen, the folders are your ingredients.\n\nYour top-level folders: ${dirs.join(', ')}.`
+            ? `Think of the whole app as a restaurant: the main script is the kitchen, the folders are your ingredients.\n\nYour top-level folders:`
             : staticApp
-              ? `index.html is the front door — everything it points to is the rest of the building.\n\nYour top-level folders: ${dirs.join(', ')}.`
-              : `Each folder usually holds one job — code, config, assets.\n\nYour top-level folders: ${dirs.join(', ')}.`,
+              ? `index.html is the front door — everything it points to is the rest of the building.\n\nYour top-level folders:`
+              : `Each folder usually holds one job — code, configuration (config), assets.\n\nYour top-level folders:`,
+    folders: dirs,
     files: [],
     tags: [],
   });
