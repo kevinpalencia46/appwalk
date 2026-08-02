@@ -87,11 +87,18 @@ export const MASCOT_FRAMES = [F1, F2, F3, F4];
 export const MASCOT_ROWS = F1.length;
 export const MASCOT_COLS = F1[0].length;
 
+// The amber flame ends in the universal reset (\x1b[0m), which would wipe the
+// phosphor green for the REST of the frame — the palette-purity trap in reverse
+// (on a recolored terminal the duck's lower rows render in the default/pink
+// color). Re-open phosphor green right after the flame AND wrap each row in g()
+// separately, so every non-flame glyph stays green no matter where the `*` sits.
+const GREEN = '\x1b[38;2;51;255;102m';
+
 // Color one frame: phosphor-green linework, amber flame (dimmed on flicker-off).
 export function renderMascot(i, flick = true) {
   const f = MASCOT_FRAMES[i % MASCOT_FRAMES.length];
-  const flame = flick ? amber('*') : dim(amber('*'));
-  return g(f.join('\n').replace('*', flame));
+  const flame = (flick ? amber('*') : dim(amber('*'))) + GREEN;
+  return f.map((row) => g(row.replace('*', flame))).join('\n');
 }
 
 // The static pose (home pose, bright flame) — what the box shows before/without

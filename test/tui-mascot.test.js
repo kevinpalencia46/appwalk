@@ -32,6 +32,26 @@ test('flicker-off dims the flame but keeps it amber', () => {
   assert.ok(off.includes('\x1b[2m\x1b[38;2;255;179;0m*'), 'flicker-off flame is dimmed amber');
 });
 
+test('the flame reset never leaks: every non-flame row re-opens phosphor green', () => {
+  // amber('*') ends in the universal \x1b[0m, which would drop the whole rest of
+  // the frame to the terminal default (pink on Kevin's recolored terminal). Each
+  // non-flame row must carry its own phosphor-green run, flicker on AND off.
+  for (const flick of [true, false]) {
+    for (let fi = 0; fi < MASCOT_FRAMES.length; fi++) {
+      const lines = renderMascot(fi, flick).split('\n');
+      assert.equal(lines.length, MASCOT_ROWS);
+      lines.forEach((line, ri) => {
+        if (!line.includes('\x1b[38;2;255;179;0m*')) {
+          assert.ok(
+            line.includes('\x1b[38;2;51;255;102m'),
+            `frame ${fi} flicker=${flick} row ${ri} keeps phosphor green after the flame reset`,
+          );
+        }
+      });
+    }
+  }
+});
+
 test('the static pose is 14 rows of phosphor-green linework', () => {
   const lines = MASCOT_STATIC.split('\n');
   assert.equal(lines.length, MASCOT_ROWS);
@@ -50,8 +70,13 @@ test('animateMascot on a non-TTY emits one static frame and a noop cleanup', () 
 });
 
 // Swap in a fake stdin (a real keypress stream would be leaked into flowing mode and
-// hang the test child forever). process.stdin is a configurable getter, so redefine it.
-function withFakeStdin(t, fn) {
+// hang the test child forever). process.stdin is a configurable getter, so redefine
+// it — but snapshot the REAL stream first and restore that exact value, mirroring the
+// piped-stdin test below. (Overwriting the accessor with a data property means `delete`
+// can't bring the getter back, and restoring an undefined nativeStdin would clobber
+// real stdin for the rest of the test process.)
+function withFakeStdin(fn) {
+  const real = process.stdin;
   const handlers = {};
   const fakeStdin = {
     isTTY: true,
@@ -61,11 +86,11 @@ function withFakeStdin(t, fn) {
   };
   Object.defineProperty(process, 'stdin', { value: fakeStdin, configurable: true });
   try { fn(handlers); }
-  finally { Object.defineProperty(process, 'stdin', { value: t.nativeStdin, configurable: true }); }
+  finally { Object.defineProperty(process, 'stdin', { value: real, configurable: true }); }
 }
 
-test('animateMascot on a TTY saves/restores the cursor and returns a cleanup', (t) => {
-  withFakeStdin(t, (handlers) => {
+test('animateMascot on a TTY saves/restores the cursor and returns a cleanup', () => {
+  withFakeStdin((handlers) => {
     let out = '';
     const fake = { isTTY: true, write: (s) => { out += s; } };
     const cleanup = animateMascot(fake, { row: 2, col: 6 });
@@ -82,8 +107,8 @@ test('animateMascot on a TTY saves/restores the cursor and returns a cleanup', (
   });
 });
 
-test('animateMascot stops on the first keypress', (t) => {
-  withFakeStdin(t, (handlers) => {
+test('animateMascot stops on the first keypress', () => {
+  withFakeStdin((handlers) => {
     let out = '';
     const fake = { isTTY: true, write: (s) => { out += s; } };
     animateMascot(fake, { row: 2, col: 6 });
