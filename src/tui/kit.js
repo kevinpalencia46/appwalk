@@ -30,6 +30,18 @@ export function wrap(text, width) {
   return lines;
 }
 
+// Wrap multi-paragraph prose to `width` while PRESERVING the blank line between
+// paragraphs — so "one idea per paragraph" bodies (the tour) keep their breathing room
+// instead of collapsing into one wall of text. `\n\n` (or more) separates paragraphs.
+export function wrapParas(text, width) {
+  const out = [];
+  for (const para of String(text).split(/\n\s*\n/)) {
+    if (out.length) out.push('');
+    out.push(...wrap(para, width));
+  }
+  return out;
+}
+
 // Resolve a requested box width: 'full' means the whole terminal minus a 2-col margin,
 // capped at 78 so no content line ever exceeds ~74 visible columns — the old 140+ char
 // rows were the biggest "not designed" tell. Anything else is clamped to [min, 78].
