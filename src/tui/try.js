@@ -140,8 +140,16 @@ export async function step(state, key, data) {
     return { ...state, out, err, code, refused: false, ran: true, cmd, args, label: line };
   }
   // Going back returns to the tour step this box came from (not step 0) so the
-  // beginner lands exactly where they pressed t.
-  if (key === 'q' || key === 'esc') {
+  // beginner lands exactly where they pressed t. `q` is only a back key when the
+  // user isn't mid-command: while typing, `q` is just a letter (it accumulates in
+  // the buffer below). It only quits on an EMPTY buffer or right after a run.
+  // esc always cancels — it can never be a character in a command.
+  if (key === 'esc') {
+    return state.tourStep != null
+      ? { to: state.back || 'tour', params: { resume: state.tourStep } }
+      : { to: state.back || 'tour' };
+  }
+  if (key === 'q' && (state.buf.trim() === '' || state.ran)) {
     return state.tourStep != null
       ? { to: state.back || 'tour', params: { resume: state.tourStep } }
       : { to: state.back || 'tour' };

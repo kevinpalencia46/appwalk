@@ -61,7 +61,9 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
     onKey: async (key) => {
       // Global navigation: `h` returns to the home menu from anywhere (the beginner
       // friendly way out — every screen also keeps its own q/q-back behavior).
-      if (key === 'h' && screen.name !== 'home') {
+      // The try screen is exempt: its editable command line may legitimately contain
+      // an `h` (e.g. `cat index.html`), so `h` there is just a letter, not a route.
+      if (key === 'h' && screen.name !== 'home' && screen.name !== 'try') {
         screen = { name: 'home', state: SCREENS.home.init() };
         paint();
         return true;

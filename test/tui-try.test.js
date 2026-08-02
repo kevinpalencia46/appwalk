@@ -116,6 +116,18 @@ test('try step edits the input with typing and backspace', async () => {
   assert.equal((await step(await step(st, 'l', {}), '\x7f', {})).buf, 'cat package.json');
 });
 
+test('try step: typing a command containing h and q accumulates letters instead of quitting', async () => {
+  // `h` must not route home mid-command (the shell exempts the try screen) and `q`
+  // must not go back to the tour while the user is still typing — both are just
+  // letters in the editable buffer here.
+  let st = init({});
+  for (const ch of 'cat index.html') st = await step(st, ch, {});
+  assert.equal(st.buf, 'cat index.html', 'the whole command accumulates, including the h in "html"');
+  st = await step(st, 'q', {});
+  assert.equal(st.buf, 'cat index.htmlq', 'q is typed as a letter, not a back signal, while mid-command');
+  assert.equal(st.tourStep, undefined, 'still on the try screen, not routed anywhere');
+});
+
 test('try step: enter with an empty command does nothing', async () => {
   const after = await step(init({}), 'enter', {});
   assert.equal(after.ran, false);

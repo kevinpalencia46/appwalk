@@ -9,7 +9,7 @@ export const init = (params = {}) => ({ step: params.resume ?? 0 });
 // `b` and ← go back a step; `h` still means home (handled globally in the shell).
 export const hints = (state, data) => {
   const t = data?.tour?.[state?.step];
-  if (t?.models) return '↑↓ choose a model · ENTER expand detail · ENTER again continues · ←/b back · h = home · q = quit';
+  if (t?.models) return '↑↓ choose a model · ENTER expand detail · ENTER again continues · ←/b back · g = glossary · h = home · q = quit';
   const s = t ? suggest(data?.stack, t) : null;
   return '← back · Enter next · o = open · g = glossary' + (s ? ' · t = try it' : '') + ' · h = home';
 };
@@ -49,6 +49,8 @@ export function render(state, data, tour = data.tour) {
         ...modelRows(t.models, state, w - 10),
         '',
         `  ${dim('Press ENTER to expand a model — press it again to keep walking.')}`,
+        '',
+        `  ${dim('Any word you don\'t know — press g and I\'ll explain it.')}`,
       ]
     : [
         `  ${g('▶')}  ${g(t.title)}`,

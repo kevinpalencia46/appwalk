@@ -174,9 +174,14 @@ export async function buildTour(map, stack) {
   });
 
   // Step 7 — what to watch. One encouraging idea: run the audit next; it's safe.
+  // For non-node stacks this is where the word "dependencies" first appears, so it
+  // gets a one-line plain-words intro before the audit promises to spot risky ones.
+  const depIntro = nodeApp
+    ? ''
+    : ' (a dependency is a library your app relies on — we\'ll spot any unused ones here)';
   steps.push({
     title: 'What to watch',
-    body: 'Next, run `appwalk audit` — the safety check.\n\nIt looks for leaked secrets, leftover clutter, duplicate files, and risky dependencies.\n\nEvery finding comes with a fix — I\'ll walk you through it.',
+    body: `Next, run \`appwalk audit\` — the safety check.\n\nIt looks for leaked secrets, leftover clutter, duplicate files, and risky dependencies${depIntro}.\n\nEvery finding comes with a fix — I\'ll walk you through it.`,
     files: [],
     tags: [],
   });
