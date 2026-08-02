@@ -4,6 +4,7 @@ import { buildMap } from '../tree.js';
 import { detectStack, buildTour } from '../walkthrough.js';
 import { allFindings } from '../audit/index.js';
 import { inc as statsInc } from '../stats.js';
+import { animateMascot } from './mascot.js';
 import * as home from './home.js';
 import * as tour from './tour.js';
 import * as viewer from './viewer.js';
@@ -35,10 +36,19 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
   };
   const name = SCREENS[start] ? start : 'home';
   let screen = { name, state: SCREENS[name].init() };
+  let mascotAnim = null;   // animation overlay handle — stopped before every repaint
   const paint = () => {
+    mascotAnim?.();
+    mascotAnim = null;
     const cur = SCREENS[screen.name];
     const hints = typeof cur.hints === 'function' ? cur.hints(screen.state, data) : cur.hints;
     process.stdout.write('\x1b[2J\x1b[H' + cur.render(screen.state, data) + '\n' + bar(screen.name, hints));
+    // The mascot walks on the home screen only: a static pose inside the box plus
+    // an in-place animation overlay that rewrites just the mascot rows. Non-TTY
+    // (piped/CI) skips the overlay — the static pose is already in the box.
+    if (screen.name === 'home' && process.stdout.isTTY) {
+      mascotAnim = animateMascot(process.stdout, home.MASCOT_AT);
+    }
   };
   paint(); // initial frame before entering the loop
   await mkLoop({
@@ -89,4 +99,5 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
       return true;
     },
   });
+  mascotAnim?.();   // leave with the cursor restored and no orphaned timers
 }

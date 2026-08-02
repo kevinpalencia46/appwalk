@@ -2,7 +2,7 @@
 // Product-brief rules: findings render as a checklist with a score, never a wall of
 // red; every finding carries a fix shown right under it; the score + critical finding
 // stay in the upper-middle of the screen (score is the box title, first line inside).
-import { box, g, b, y, r, dim, sanitize, wrap, W } from './kit.js';
+import { box, g, dg, r, dim, sanitize, wrap, W } from './kit.js';
 import { CATEGORIES, categoryOf, cleanCount } from '../audit/index.js';
 
 // Display labels for the five audit categories, secrets first (critical findings
@@ -77,20 +77,20 @@ function renderCategoryRows(groups, catCursor) {
   return CATEGORIES.map((c, i) => {
     const list = groups[c] || [];
     const isClean = list.length === 0;
-    // Red is reserved for the secrets category with findings; everything else is
-    // yellow (has findings) or green (clean).
-    const mark = isClean ? g('✓') : (c === 'secrets' ? r('✗') : y('✗'));
+    // Red stays strictly on secrets with findings; everything else is phosphor green
+    // (clean) or dim green (secondary findings).
+    const mark = isClean ? g('✓') : (c === 'secrets' ? r('✗') : dg('✗'));
     const summary = isClean
       ? '0 findings — clean'
       : `${list.length} finding${list.length === 1 ? '' : 's'} — ${findingSummary(list[0])}${list.length > 1 ? ' …' : ''}`;
-    return `  ${i === catCursor ? g('▶') : ' '} ${mark}  ${b(LABELS[c] || c)}  ${dim(summary)}`;
+    return `  ${i === catCursor ? g('▶') : ' '} ${mark}  ${g(LABELS[c] || c)}  ${dim(summary)}`;
   });
 }
 
 function renderFindingRows(catKey, list, cursor) {
   const rows = list.map((f, i) => {
-    // Secrets findings are red; findings in other categories are yellow.
-    const mark = catKey === 'secrets' ? r('⚠') : y('⚠');
+    // Secrets findings are red; findings in other categories are secondary (dim green).
+    const mark = catKey === 'secrets' ? r('⚠') : dg('⚠');
     const where = `${sanitize(f.file)}${f.line ? ':' + f.line : ''}`;
     return `  ${i === cursor ? g('▶') : ' '} ${mark}  ${where}  ${findingSummary(f)}`;
   });
@@ -98,20 +98,20 @@ function renderFindingRows(catKey, list, cursor) {
 }
 
 function renderDetail(f) {
-  if (!f) return box('Finding', ['  (no finding)']);
+  if (!f) return box('Finding', ['  (no finding)'], { height: 'full' });
   const prompt = askYourAI(f);
   const inner = Math.max(20, Math.min(100, W()) - 20);
   const promptLines = wrap(prompt, inner);
   const fixText = sanitize(f.fix || 'Review this finding and remove the risk.');
   const fixLines = wrap(fixText, inner);
   const lines = [
-    `  ${b(f.kind)}  ${sanitize(f.file)}${f.line ? ':' + f.line : ''}`,
+    `  ${g(f.kind)}  ${sanitize(f.file)}${f.line ? ':' + f.line : ''}`,
     '',
     `  ${f.label || f.reason || ''}`,
     ...(f.snippet ? [`  snippet: ${g(sanitize(f.snippet))}`] : []),
     ...(f.other ? [`  duplicate of: ${sanitize(f.other)} (sim ${f.sim})`] : []),
     '',
-    `  ${y('FIX')}  ${fixLines[0] || ''}`,
+    `  ${dg('FIX')}  ${fixLines[0] || ''}`,
     ...fixLines.slice(1).map((l) => `    ${l}`),
     '',
     `  ${g('ask your AI')}: ${promptLines[0] || ''}`,
@@ -123,7 +123,7 @@ function renderDetail(f) {
     '',
     '  (Enter to go back)',
   ];
-  return box('Finding', lines);
+  return box('Finding', lines, { height: 'full' });
 }
 
 export function render(state, data) {
@@ -135,9 +135,9 @@ export function render(state, data) {
     return renderDetail((groups[state.open] || [])[state.detail]);
   }
   if (state.open !== null) {
-    return box(title, renderFindingRows(state.open, groups[state.open] || [], state.cursor));
+    return box(title, renderFindingRows(state.open, groups[state.open] || [], state.cursor), { height: 'full' });
   }
-  return box(title, renderCategoryRows(groups, state.catCursor));
+  return box(title, renderCategoryRows(groups, state.catCursor), { height: 'full' });
 }
 
 export function step(state, key, data) {

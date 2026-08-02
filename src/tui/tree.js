@@ -1,5 +1,5 @@
 // src/tui/tree.js
-import { box, bar, g, b, dim, inv } from './kit.js';
+import { box, g, dg, dim, inv } from './kit.js';
 
 export function buildFolderTree(flat) {
   const root = [];
@@ -45,7 +45,7 @@ export function render(state, data) {
     const pad = '  '.repeat(n.depth);
     let line;
     if (n.type === 'dir') {
-      line = `  ${pad}${state.expanded.has(n.path) ? '▾' : '▸'} ${b(n.name)}/   (${n.children.length} item${n.children.length === 1 ? '' : 's'})`;
+      line = `  ${pad}${state.expanded.has(n.path) ? '▾' : '▸'} ${g(n.name)}/   (${n.children.length} item${n.children.length === 1 ? '' : 's'})`;
     } else {
       const mark = n.entry ? g('●') : ' ';
       const meta = `${n.lang} · ${fmt(n.size)}`;
@@ -54,7 +54,7 @@ export function render(state, data) {
     return i === state.cursor ? inv(line) : line;
   });
   const hasEnv = data.map.hasEnv;
-  return box(data.root.split('/').filter(Boolean).pop() || 'app', [...rows, ...(hasEnv ? ['', '  ▸ .env — location only', `     ${dim('why: holds secrets (API keys, passwords).')}`, `     ${dim('Keep it gitignored — commit it and anyone can read them.')}`] : [])]);
+  return box(data.root.split('/').filter(Boolean).pop() || 'app', [...rows, ...(hasEnv ? ['', '  ▸ .env — location only', `     ${dim('why: holds secrets (API keys, passwords).')}`, `     ${dim('Keep it gitignored — commit it and anyone can read them.')}`] : [])], { height: 'full' });
 }
 const fmt = (n) => n >= 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + ' MB' : n >= 1024 ? (n / 1024).toFixed(1) + ' KB' : n + ' B';
 

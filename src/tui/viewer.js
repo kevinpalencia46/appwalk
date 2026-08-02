@@ -7,7 +7,7 @@
 // absolute/other paths keep working.
 import { readFileSync } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
-import { box, g, b, dim, W, sideBySide } from './kit.js';
+import { box, g, dim, W, sideBySide } from './kit.js';
 import { highlight } from './highlight.js';
 import { aboutFile } from './about.js';
 const readFileSafeSync = (p) => { try { return readFileSync(p, 'utf8'); } catch { return null; } };
@@ -54,12 +54,12 @@ export function render(state, data) {
           })),
       ...(files.length ? [`  ${dim(countLine)}`] : []),
       '',
-      `  ${b('$')} ${state.buf}_`,
+      `  ${g('$')} ${state.buf}_`,
     ];
-    return box('Ask about a file', rows, { width: 'full' });
+    return box('Ask about a file', rows, { width: 'full', height: 'full' });
   }
   const file = state.file;
-  if (!file) return box('File', ['  (nothing open)', '', '  Enter a path to view a file.']);
+  if (!file) return box('File', ['  (nothing open)', '', '  Enter a path to view a file.'], { height: 'full' });
   const base = file.split('/').pop() || '';
   // Refuse every dotenv variant (.env, .env.local, .env.production, …), never just .env
   if (/^\.env(\.|$)/.test(base)) {
@@ -75,7 +75,7 @@ export function render(state, data) {
       '  it and anyone can read them.',
       '',
       '  (press Enter to go back)',
-    ]);
+    ], { height: 'full' });
   }
   const text = readFileSafeSync(file) ?? '';
   const node = data.map?.flat?.find((n) => n.path === file);
@@ -93,10 +93,10 @@ export function render(state, data) {
   const aboutW = Math.max(30, Math.min(44, Math.floor(avail / 2) - 6));
   const fileW = Math.max(44, avail - aboutW - 4);
   if (fileW + 2 + aboutW <= avail) {
-    const aboutBox = box('About this file', aboutFile(node, aboutW - 8), { width: aboutW, min: 20 });
-    return sideBySide(box(title, rows, { width: fileW, min: 44 }), aboutBox);
+    const aboutBox = box('About this file', aboutFile(node, aboutW - 8), { width: aboutW, min: 20, height: 'full' });
+    return sideBySide(box(title, rows, { width: fileW, min: 44, height: 'full' }), aboutBox);
   }
-  return box(title, rows, { width: 'full' });
+  return box(title, rows, { width: 'full', height: 'full' });
 }
 
 export function step(state, key, data) {

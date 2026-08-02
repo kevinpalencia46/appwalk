@@ -5,7 +5,7 @@
 // array (no shell, no injection) is safe. Enter/q returns to the caller (the tour).
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { box, b, dim, g, sanitize } from './kit.js';
+import { box, dim, g, sanitize } from './kit.js';
 const exec = promisify(execFile);
 
 // appwalk's allowed "try it" commands, keyed by detected stack. Each is a tiny,
@@ -75,7 +75,7 @@ export function render(state) {
   const rows = [
     `  ${g('▶')} try it — ${state.label || cmdLine}`,
     '',
-    `  ${b('$')} ${sanitize(cmdLine)}`,
+    `  ${g('$')} ${sanitize(cmdLine)}`,
     '',
     ...(state.out ? sanitize(state.out).split('\n').filter((l, i, a) => !(l === '' && i === a.length - 1)).map((l) => `  ${l}`) : []),
     ...(state.err ? [`  ${dim(sanitize(state.err))}`] : []),
@@ -86,7 +86,7 @@ export function render(state) {
     '',
     '  Enter to go back to the tour.',
   ];
-  return box('Try it', rows, { width: 'full' });
+  return box('Try it', rows, { width: 'full', height: 'full' });
 }
 
 export function step(state, key) {

@@ -7,7 +7,7 @@
 // "open a term" screen for a beginner to get lost in. The list can be narrowed to
 // only the terms a session has seen so far (`data.seenTerms`) so a beginner is
 // never overwhelmed by the whole dictionary at once.
-import { box, b, dim, g, visLen, W, wrap, sideBySide } from './kit.js';
+import { box, dim, g, visLen, W, wrap, sideBySide } from './kit.js';
 import { TERMS, renderTerm } from '../glossary.js';
 
 export const init = (params = {}) => ({ cursor: 0, back: params.back || null });
@@ -25,12 +25,12 @@ export function render(state, data = {}) {
   const leftRows = [
     ...(seen ? [`  ${dim('more terms unlock as you go')}`, ''] : []),
     ...terms.map((t, i) =>
-      `  ${i === cursor ? g('▶') : ' '}  ${b(t.term)}${dim(' — ' + t.what.slice(0, 26))}`),
+      `  ${i === cursor ? g('▶') : ' '}  ${g(t.term)}${dim(' — ' + t.what.slice(0, 26))}`),
   ];
   // The list is a narrow pane on the left; the definition gets the remaining width.
   const contentW = Math.max(...leftRows.map((r) => visLen(r)));
   const leftW = Math.max(22, Math.min(34, contentW + 4));
-  const left = box(seen ? `Glossary — ${terms.length} seen` : `Glossary — ${TERMS.length} terms`, leftRows, { width: leftW, min: 20 });
+  const left = box(seen ? `Glossary — ${terms.length} seen` : `Glossary — ${TERMS.length} terms`, leftRows, { width: leftW, min: 20, height: 'full' });
 
   const sel = terms[cursor] || TERMS[0];
   const rightW = Math.max(44, (W() - 2) - leftW - 2);
@@ -39,7 +39,7 @@ export function render(state, data = {}) {
     if (!raw) { defLines.push(''); continue; }
     defLines.push(...wrap(raw, Math.max(20, rightW - 6)));
   }
-  const right = box(sel.term, ['', ...defLines.map((l) => `  ${l}`), ''], { width: rightW, min: 44 });
+  const right = box(sel.term, ['', ...defLines.map((l) => `  ${l}`), ''], { width: rightW, min: 44, height: 'full' });
   return sideBySide(left, right);
 }
 

@@ -19,7 +19,8 @@ export function highlight(code, lang) {
     if (ch === '"' || ch === "'" || ch === '`') {
       let j = i + 1; while (j < s.length && s[j] !== ch) j++;
       if (s[j] === ch) j++;
-      out += `\x1b[32m${s.slice(i, j)}\x1b[0m`; i = j; continue;
+      // strings are secondary content → dim green (#1F9940)
+      out += `\x1b[38;2;31;153;64m${s.slice(i, j)}\x1b[0m`; i = j; continue;
     }
     if ((ch === '/' && s[i + 1] === '/') || (lang === 'py' && ch === '#')) {
       let j = i; while (j < s.length && s[j] !== '\n') j++;
@@ -30,7 +31,8 @@ export function highlight(code, lang) {
     if (m) {
       // Emit the WHOLE identifier in one append — emitting it char-by-char made the
       // highlighter O(L²) on long identifiers (string concat per char).
-      out += KW.has(m[0]) ? `\x1b[34m${m[0]}\x1b[0m` : m[0];
+      // keywords are the structural emphasis → phosphor green (#33FF66)
+      out += KW.has(m[0]) ? `\x1b[38;2;51;255;102m${m[0]}\x1b[0m` : m[0];
       i += m[0].length;
       continue;
     }

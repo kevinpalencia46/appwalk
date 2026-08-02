@@ -5,8 +5,8 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildMap } from '../src/tree.js';
-import { detectStack, buildTour } from '../src/walkthrough.js';
-import { init, render, step } from '../src/tui/tour.js';
+import { detectStack, buildTour, MODEL_OPTIONS } from '../src/walkthrough.js';
+import { init, render, step, hints } from '../src/tui/tour.js';
 
 async function makeData() {
   const root = await mkdtemp(join(tmpdir(), 'tour-ui-'));
@@ -17,12 +17,12 @@ async function makeData() {
   return { root, map, stack, tour: await buildTour(map, stack) };
 }
 
-test('tour render shows step N of total, the mascot, and a body', async () => {
+test('tour render shows step N of total and a body (no mascot)', async () => {
   const data = await makeData();
   const s = render(init(), data);
   assert.match(s, /step 1 of/);
-  assert.match(s, /•_•/, 'mascot appears at the top of each tour step');
   assert.ok(s.length > 40);
+  assert.ok(!s.includes('o   o'), 'the duck mascot is stripped from tour steps');
 });
 test('tour step advances, opens a file, and finishes on the last step', async () => {
   const data = await makeData();
@@ -60,6 +60,35 @@ test('tour render advertises the t try-it key when the stack has something to ru
   const data = await makeData();
   const s = render(init(), data);
   assert.match(s, /t = try it|Press .t. to try it|try it/, 'a try-it hint is visible');
+});
+
+test('tour model picker: renders 4 rows, arrows move, Enter expands, Enter again advances', async () => {
+  const data = await makeData();
+  const t = data.tour.findIndex((s) => s.models);
+  assert.ok(t >= 0, 'the choose-your-model step exists in the tour');
+  const start = { step: t };
+  assert.match(hints(start, data), /choose a model/, 'the picker hints describe the picker');
+  const s = render(start, data);
+  for (const m of MODEL_OPTIONS) assert.match(s, new RegExp(m.label.replace(/[()]/g, '\\$&')), `row shows ${m.label}`);
+  assert.match(s, /cheap & fast/, 'cost is shown per row');
+  assert.match(s, /free · private · offline/, 'local cost is shown per row');
+  assert.match(s, /no key needed/, 'claude-code cost is shown per row');
+  assert.match(s, /Press ENTER to expand/, 'the hint line explains the first press');
+  // arrows move the selection and clamp at the ends
+  assert.equal(step(start, 'down', data, data.tour).modelSel, 1);
+  assert.equal(step({ step: t, modelSel: 3 }, 'down', data, data.tour).modelSel, 3);
+  assert.equal(step({ step: t, modelSel: 1 }, 'up', data, data.tour).modelSel, 0);
+  // first Enter expands the detail on the selected row, staying on the step
+  const exp = step(start, 'enter', data, data.tour);
+  assert.equal(exp.modelDetail, 0, 'detail opens on the selected model');
+  assert.equal(exp.step, t);
+  assert.match(render(exp, data), /setup:/, 'the expanded setup detail renders');
+  assert.match(render(exp, data), /AI_PROVIDER|Ollama|claude-code/, 'real setup facts render');
+  // moving clears the expanded detail
+  assert.equal(step(exp, 'down', data, data.tour).modelDetail, null);
+  // second Enter (detail open) advances the tour
+  const adv = step(exp, 'enter', data, data.tour);
+  assert.equal(adv.step, t + 1);
 });
 
 test('tour render sanitizes escape sequences out of the step body', async () => {

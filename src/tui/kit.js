@@ -1,17 +1,20 @@
-// src/tui/kit.js
+// src/tui/kit.js — shared TUI primitives + the phosphor palette.
+//
+// Monochrome phosphor (spec 2026-08-01-visual-identity):
+//   phosphor green  #33FF66  primary text, emphasis, headers, mascot linework
+//   dim green       #1F9940  borders, inactive, secondary
+//   lantern amber   #FFB300  the lantern flame ONLY — nothing else
+//   danger red      #FF4444  real secrets ONLY — nothing else
+// Two semantic rules are enforced across every screen: amber never appears off
+// the mascot's lantern, and red never appears off a real secret.
 export const W = () => process.stdout.columns || 80;
 export const c = (code, s) => `\x1b[${code}m${s}\x1b[0m`;
-export const g = (s) => c('32', s);
-export const b = (s) => c('34', s);
-export const y = (s) => c('33', s);
-export const r = (s) => c('31', s);
+export const g = (s) => c('38;2;51;255;102', s);   // phosphor green #33FF66
+export const dg = (s) => c('38;2;31;153;64', s);   // dim green #1F9940
+export const amber = (s) => c('38;2;255;179;0', s); // lantern amber #FFB300 — lantern only
+export const r = (s) => c('38;2;255;68;68', s);    // danger red #FF4444 — secrets only
 export const dim = (s) => c('2', s);
 export const inv = (s) => c('7', s);
-
-// The appwalk mascot — a tiny, static, zero-dependency character shown at the top of
-// the home screen and each tour step. A single string constant so it's easy to tweak.
-export const MASCOT = `(•_•)
-/ >👋  hi! i'll help you understand your app.`;
 
 // Wrap a paragraph to `width` visible characters, keeping whole words intact. Shared by
 // the tour body and the glossary definition pane so long prose never overflows a box.
@@ -27,12 +30,14 @@ export function wrap(text, width) {
   return lines;
 }
 
-// Resolve a requested box width: 'full' means the whole terminal minus a 2-col margin;
-// anything else is used as-is, then clamped to [min, 120]. The default minimum (44) is
-// deliberately wide so a beginner can see a screen's contents at a glance.
+// Resolve a requested box width: 'full' means the whole terminal minus a 2-col margin,
+// capped at 78 so no content line ever exceeds ~74 visible columns — the old 140+ char
+// rows were the biggest "not designed" tell. Anything else is clamped to [min, 78].
+// The default minimum (44) is deliberately wide so a beginner can see a screen's
+// contents at a glance.
 export const boxWidth = (width = W(), min = 44) => {
   if (width === 'full') width = Math.max(2, W() - 2);
-  return Math.min(Math.max(width, min), 120);
+  return Math.min(Math.max(width, min), 78);
 };
 
 // Terminal-escape injection guard: repo content rendered into a raw-mode terminal is
@@ -91,18 +96,27 @@ export function sideBySide(left, right) {
   return rows.join('\n');
 }
 
-export function box(title, lines, { width = W(), min = 44 } = {}) {
+// A framed panel. Width is clamped to [min, 78]; `height: 'full'` pads the content
+// rows up to terminal height (leaving the bottom row for the hint bar) so the app
+// fills the screen and crops clean to 9:16 — no more black void under a small box.
+// Borders are dim green, the title phosphor green: the box is the screen's frame.
+export function box(title, lines, { width = W(), min = 44, height } = {}) {
   const w = boxWidth(width, min);
   const inner = w - 4;
   const t0 = String(title);
   const t = t0.length > w - 6 ? t0.slice(0, w - 7) + '…' : t0;
-  const top = `┌─ ${t} ${'─'.repeat(Math.max(0, w - t.length - 5))}┐`;
-  const rows = lines.map((l) => {
+  const content = lines.map((l) => {
     let s = String(l);
     if (visLen(s) > inner) s = sliceVis(s, inner);
-    return `│ ${s + ' '.repeat(Math.max(0, inner - visLen(s)))} │`;
+    return dg('│ ') + s + ' '.repeat(Math.max(0, inner - visLen(s))) + dg(' │');
   });
-  return [top, ...rows, `└${'─'.repeat(w - 2)}┘`].join('\n');
+  if (height === 'full') {
+    const target = Math.max(content.length, (process.stdout.rows || 24) - 3);
+    while (content.length < target) content.push(dg('│ ') + ' '.repeat(inner) + dg(' │'));
+  }
+  const top = dg('┌─ ') + g(t) + dg(' ' + '─'.repeat(Math.max(0, w - visLen(t) - 5)) + '┐');
+  const bottom = dg('└' + '─'.repeat(w - 2) + '┘');
+  return [top, ...content, bottom].join('\n');
 }
 
 export function bar(left, right) {
@@ -110,10 +124,12 @@ export function bar(left, right) {
   const l = String(left), r2 = String(right);
   const pad = Math.max(0, w - l.length - r2.length);
   const line = (l + ' '.repeat(pad) + r2).slice(0, w);
-  // Whole bar: bold + inverse video so the hints are the most prominent row on screen.
-  // The primary action (ENTER) is highlighted bright yellow inside it — a beginner
-  // should spot "press ENTER to continue" without hunting.
-  return '\x1b[1;7m' + line.replace(/ENTER/g, '\x1b[1;93mENTER\x1b[0m\x1b[1;7m') + '\x1b[0m';
+  // Quiet status bar: dim inverse background, muted text — the quietest row on the
+  // screen. Only the one primary key (ENTER) is highlighted bright phosphor green,
+  // so the single next action is what catches the eye.
+  const base = '\x1b[2;7m';
+  const bright = '\x1b[1;38;2;51;255;102m';
+  return base + line.replace(/ENTER/g, `${bright}ENTER\x1b[0m${base}`) + '\x1b[0m';
 }
 
 export function decodeKey(buf) {

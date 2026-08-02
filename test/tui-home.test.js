@@ -7,7 +7,8 @@ test('home render shows the project name and 5 choices', () => {
   const s = render(init(), { root: '/home/ren/great-pacific' });
   assert.match(s, /appwalk/);
   assert.match(s, /GREAT-PACIFIC/, 'project name is shown big');
-  assert.match(s, /•_•/, 'mascot appears at the top of home');
+  assert.match(s, /o   o/, 'the duck mascot appears at the top of home');
+  assert.match(s, /★/, 'the project name is shown as a phosphor header');
   assert.match(s, /guided tour/);
   assert.match(s, /Explore your files/);
   assert.match(s, /Audit for safety/);

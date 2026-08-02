@@ -3,11 +3,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { highlight } from '../src/tui/highlight.js';
 
-test('highlight colors keywords blue, strings green, comments dim', () => {
+test('highlight colors keywords phosphor, strings dim green, comments dim', () => {
   const out = highlight('const x = "hi"; // note', 'js');
-  assert.match(out, /\x1b\[34mconst\x1b\[0m/);      // keyword blue
-  assert.match(out, /\x1b\[32m"hi"\x1b\[0m/);        // string green
-  assert.match(out, /\x1b\[2m\/\/ note\x1b\[0m/);    // comment dim
+  assert.match(out, /\x1b\[38;2;51;255;102mconst\x1b\[0m/);      // keyword phosphor green
+  assert.match(out, /\x1b\[38;2;31;153;64m"hi"\x1b\[0m/);        // string dim green
+  assert.match(out, /\x1b\[2m\/\/ note\x1b\[0m/);                // comment dim
 });
 test('highlight passes unknown languages through unchanged', () => {
   const s = 'anything goes';
@@ -21,7 +21,7 @@ test('highlight neutralizes embedded terminal escape sequences', () => {
   assert.ok(!out.includes('\x1b[?25l'), 'cursor-hide escape leaked through');
   // our OWN wrapper codes (color open/close) are the only escapes present
   const codes = out.match(/\x1b\[[0-9;]*m/g) || [];
-  assert.ok(codes.every((c) => ['\x1b[32m', '\x1b[34m', '\x1b[2m', '\x1b[0m'].includes(c)));
+  assert.ok(codes.every((c) => ['\x1b[38;2;51;255;102m', '\x1b[38;2;31;153;64m', '\x1b[2m', '\x1b[0m'].includes(c)));
   assert.equal((out.match(/\x1b\[/g) || []).length, codes.length);   // every escape is a color code
 });
 test('highlight sanitizes control chars even on the passthrough path', () => {

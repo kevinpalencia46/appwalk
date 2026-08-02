@@ -14,7 +14,7 @@ test('glossary renders a two-pane split: a list term AND its definition at once'
 
 test('glossary renders a visible green cursor on the selected term', () => {
   const s = render(init(), {});
-  assert.match(s, /\x1b\[32m▶\x1b\[0m/);
+  assert.match(s, /\x1b\[38;2;51;255;102m▶\x1b\[0m/);
 });
 
 test('glossary seenTerms narrows the list to only what has been seen', () => {

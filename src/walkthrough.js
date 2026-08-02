@@ -2,7 +2,6 @@
 import { basename } from 'node:path';
 import { readFileSafe, rel } from './util.js';
 import { findMatches } from './glossary.js';
-import { educateText } from './ai/educate.js';   // deterministic text — no AI key needed
 import { fileHistory } from './history.js';
 
 export function detectStack(map) {
@@ -21,6 +20,41 @@ const gloss = (s) => {
   const hits = findMatches(s);
   return hits.length ? `\n   [terms: ${hits.join(', ')} — run \`appwalk glossary <term>\` for what they mean]` : '';
 };
+
+// The four AI model options shown as a selectable list on tour step 5. Each row
+// carries its cost + one-line "good at"; the tour expands `setup` when Enter is
+// pressed on the selected row. Same facts as the old educateText() wall of prose,
+// restructured into a picker so a beginner reads four comparable rows, not a block.
+export const MODEL_OPTIONS = [
+  {
+    id: 'lite',
+    label: 'lite',
+    cost: 'cheap & fast',
+    goodAt: 'quick "what does this mean" explainers',
+    setup: 'Paste your API key into .env as AI_API_KEY and set AI_PROVIDER=anthropic. Still smart, just shallower — the key stays in .env (gitignored), never commit it.',
+  },
+  {
+    id: 'pro',
+    label: 'pro',
+    cost: 'most capable, costs more',
+    goodAt: 'deep reasoning, hard bugs, refactors',
+    setup: 'Set AI_PROVIDER=anthropic and AI_MODEL=<pro model> in .env. Costs more per answer — save it for the hard stuff, not for a one-line "what does this mean?".',
+  },
+  {
+    id: 'local',
+    label: 'local (Ollama)',
+    cost: 'free · private · offline',
+    goodAt: 'summaries and small asks',
+    setup: 'Install Ollama from ollama.com, then run `ollama pull llama3.2:3b`. It runs entirely on your machine — free and private. Needs ~4GB+ free RAM; on a phone/low-spec laptop skip local and use lite instead.',
+  },
+  {
+    id: 'claude-code',
+    label: 'Claude Code',
+    cost: 'no key needed',
+    goodAt: 'an agent that reads AND edits your files',
+    setup: 'Set AI_PROVIDER=claude-code — no key needed. Use it when you want the AI to DO things (edit files, run commands), not just talk.',
+  },
+];
 
 export async function buildTour(map, stack) {
   const steps = [];
@@ -70,7 +104,8 @@ export async function buildTour(map, stack) {
 
   steps.push({
     title: 'Choosing your AI model (optional — free to skip)',
-    body: educateText(),
+    body: '',            // the tour renders the selectable MODEL_OPTIONS list instead
+    models: MODEL_OPTIONS,
     files: [],
     tags: [],
   });
