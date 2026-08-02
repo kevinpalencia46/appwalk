@@ -61,6 +61,11 @@ test('viewer input mode lists project files on the left', async () => {
   assert.match(s, /Ask about a file/);
   assert.match(s, /a\.js/);
   assert.match(s, /b\.js/);
+  // the first render invites, not just lists
+  assert.match(s, /open up a file to view your code and a brief explanation/, 'the empty state invites');
+  // once the user starts typing, the invite steps aside
+  const typed = render(step(init({ mode: 'input' }), 'a', { root, map }), { root, map });
+  assert.doesNotMatch(typed, /open up a file/, 'the invite hides once typing starts');
 });
 test('viewer input mode typing filters the list and Enter opens the top match', async () => {
   const root = await mkdtemp(join(tmpdir(), 'view-filt-'));

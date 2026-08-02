@@ -37,6 +37,19 @@ test('tree render shows folders, entry points, and the .env location row', async
   assert.equal((s.match(/\x1b\[7m/g) || []).length, 1);
 });
 
+test('tree render shows the entry-point legend', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'tlegend-'));
+  await writeFile(join(root, 'package.json'), '{"name":"x"}');
+  const map = await buildMap(root);
+  const s = render(init(), { root, map });
+  assert.match(s, /entry point/, 'legend explains what the green dot means');
+  assert.match(s, /regular file/, 'legend explains a plain name');
+  // package.json is an entry point, so its mark is the green dot
+  const strip = (l) => l.replace(/\x1b\[[0-9;]*m/g, '');
+  const lines = strip(s).split('\n');
+  assert.ok(lines.some((l) => l.includes('●') && l.includes('package.json')), 'entry point file is marked with the green dot');
+});
+
 test('tree step: enter opens a file, right expands a folder, q quits', async () => {
   const root = await mkdtemp(join(tmpdir(), 'tstep-'));
   await mkdir(join(root, 'src'), { recursive: true });

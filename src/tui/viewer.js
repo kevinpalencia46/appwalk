@@ -53,6 +53,9 @@ export function render(state, data) {
             return `  ${i + start === pick ? g('▶') : ' '}  ${n.entry ? g('●') : ' '}  ${r}`;
           })),
       ...(files.length ? [`  ${dim(countLine)}`] : []),
+      // Calm invite on the first render (nothing typed yet) — the empty state
+      // invites instead of just showing a list of names.
+      ...(state.buf.trim() ? [] : [`  ${dim('open up a file to view your code and a brief explanation')}`]),
       '',
       `  ${g('$')} ${state.buf}_`,
     ];

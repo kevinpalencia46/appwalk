@@ -54,7 +54,13 @@ export function render(state, data) {
     return i === state.cursor ? inv(line) : line;
   });
   const hasEnv = data.map.hasEnv;
-  return box(data.root.split('/').filter(Boolean).pop() || 'app', [...rows, ...(hasEnv ? ['', '  ▸ .env — location only', `     ${dim('why: holds secrets (API keys, passwords).')}`, `     ${dim('Keep it gitignored — commit it and anyone can read them.')}`] : [])], { height: 'full' });
+  const envRows = hasEnv
+    ? ['', '  ▸ .env — location only', `     ${dim('why: holds secrets (API keys, passwords).')}`, `     ${dim('Keep it gitignored — commit it and anyone can read them.')}`]
+    : [];
+  // Legend: the green dot marks where the app starts, a plain name is a regular
+  // file. Renders dim so it stays the quietest thing on the tree screen.
+  const legend = `  ${g('●')} ${dim('= entry point (where the app starts)')} · ${dim('plain = a regular file')}`;
+  return box(data.root.split('/').filter(Boolean).pop() || 'app', [...rows, ...envRows, '', legend], { height: 'full' });
 }
 const fmt = (n) => n >= 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + ' MB' : n >= 1024 ? (n / 1024).toFixed(1) + ' KB' : n + ' B';
 
