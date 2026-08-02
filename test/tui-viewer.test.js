@@ -77,3 +77,11 @@ test('viewer input mode typing filters the list and Enter opens the top match', 
   assert.equal(opened.mode, 'view');
   assert.ok(opened.file.endsWith('zebra.js'));
 });
+test('viewer input mode count shows the real total when the list is capped at 40', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'view-cap-'));
+  for (let i = 0; i < 45; i++) await writeFile(join(root, `f${i}.js`), 'x');
+  const map = await buildMap(root);
+  const s = render(init({ mode: 'input' }), { root, map });
+  assert.match(s, /showing first 40 of 45 files/);
+  assert.doesNotMatch(s, /40 files/, 'must not present the capped count as the real total');
+});

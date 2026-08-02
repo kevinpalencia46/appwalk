@@ -30,10 +30,18 @@ const listFiles = (data, buf) => {
 export function render(state, data) {
   if (state.mode === 'input') {
     const files = listFiles(data, state.buf);
+    const total = (data?.map?.flat || []).length;
     const pick = Math.min(state.pick, Math.max(0, files.length - 1));
     const WINDOW = 14;
     const start = files.length ? Math.max(0, Math.min(pick - Math.floor(WINDOW / 2), files.length - WINDOW)) : 0;
     const shown = files.slice(start, start + WINDOW);
+    // The list is capped at 40 so a big repo never overwhelms — the count line must
+    // reflect that (e.g. "showing first 40 of 396 files"), not read as the real total.
+    const countLine = state.buf.trim()
+      ? `${files.length} file${files.length === 1 ? '' : 's'} matching`
+      : total > files.length
+        ? `showing first ${files.length} of ${total} file${total === 1 ? '' : 's'}`
+        : `${total} file${total === 1 ? '' : 's'}`;
     const rows = [
       `  ${dim('type to filter · ↑↓ pick · ENTER to open')}`,
       '',
@@ -43,7 +51,7 @@ export function render(state, data) {
             const r = relPath(data.root, n.path);
             return `  ${i + start === pick ? g('▶') : ' '}  ${n.entry ? g('●') : ' '}  ${r}`;
           })),
-      ...(files.length ? [`  ${dim(`${files.length} file${files.length === 1 ? '' : 's'}${state.buf.trim() ? ' matching' : ''}`)}`] : []),
+      ...(files.length ? [`  ${dim(countLine)}`] : []),
       '',
       `  ${b('$')} ${state.buf}_`,
     ];

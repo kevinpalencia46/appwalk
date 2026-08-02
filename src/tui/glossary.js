@@ -54,7 +54,7 @@ export function render(state, data = {}) {
     if (!raw) { defLines.push(''); continue; }
     defLines.push(...wrap(raw, Math.max(20, rightW - 6)));
   }
-  const right = box(sel.term, ['', ...defLines.map((l) => `  ${l}`), '']);
+  const right = box(sel.term, ['', ...defLines.map((l) => `  ${l}`), ''], { width: rightW, min: 44 });
   return sideBySide(left, right);
 }
 

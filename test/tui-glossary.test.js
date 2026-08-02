@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { init, render, step } from '../src/tui/glossary.js';
+import { visLen } from '../src/tui/kit.js';
 import { TERMS } from '../src/glossary.js';
 
 test('glossary renders a two-pane split: a list term AND its definition at once', () => {
@@ -22,6 +23,18 @@ test('glossary seenTerms narrows the list to only what has been seen', () => {
   assert.match(s, /TERM: auth/, 'definition pane shows the seen term');
   assert.doesNotMatch(s, /refactoring/, 'unseen terms stay hidden');
   assert.match(s, /more terms unlock as you go/);
+});
+
+test('glossary split view fits an 80-column terminal (no wrap)', () => {
+  const prev = process.stdout.columns;
+  process.stdout.columns = 80;
+  try {
+    const s = render(init(), {});
+    const widest = Math.max(...s.split('\n').map((l) => visLen(l)));
+    assert.ok(widest <= 80, `split view overflows: widest line is ${widest} columns`);
+  } finally {
+    process.stdout.columns = prev;
+  }
 });
 
 test('glossary step: arrows move the cursor and q quits or returns to the caller', () => {
