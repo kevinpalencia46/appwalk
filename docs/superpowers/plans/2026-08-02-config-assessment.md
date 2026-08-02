@@ -386,7 +386,9 @@ const kindOf = (name) => {
   }
   return 'generic';
 };
-const relOf = (node) => (node.dir === '.' ? node.name : `${node.dir}/${node.name}`);
+// buildMap sets dir='' for root files (rel(root, root)), NOT '.', so treat an
+// empty or '.' dir as root: no leading slash on the rel, and the (root) label.
+const relOf = (node) => (node.dir && node.dir !== '.' ? `${node.dir}/${node.name}` : node.name);
 
 const card = (path, name, kind, settings = [], note) => ({
   path, name, kind,
@@ -556,6 +558,21 @@ test('tips are present and non-empty', async () => {
   assert.ok(Array.isArray(tips) && tips.length >= 3, 'a small set of best-practice tips');
   assert.ok(tips.every((t) => strip(t).length > 0));
 });
+
+test('root files keep a clean rel (no leading slash) and count as (root)', async () => {
+  const root = await fixture({
+    'package.json': '{"main":"index.js"}',
+    'index.js': "import a from './a.handler.js'; import b from './b.handler.js'; import c from './c.handler.js';",
+    'a.handler.js': 'export default () => {};',
+    'b.handler.js': 'export default () => {};',
+    'c.handler.js': 'export default () => {};',
+  });
+  const { groups } = await suggestFiling(await buildMap(root));
+  const handlers = groupFor(groups, 'handler');
+  assert.ok(handlers, 'root handlers still group');
+  assert.ok(handlers.files.every((f) => !f.rel.startsWith('/')), 'no leading slash on root rels');
+  assert.match(handlers.note, /\(root\)/, 'the root directory is labeled, not blank');
+});
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
@@ -597,7 +614,7 @@ export async function suggestFiling(map) {
   const groups = [];
   for (const [role, files] of byRole) {
     if (!GROUP_ROLES.has(role) || files.length < 3) continue;
-    const dirs = new Set(files.map((f) => (f.dir === '.' ? '(root)' : f.dir)));
+    const dirs = new Set(files.map((f) => (f.dir && f.dir !== '.' ? f.dir : '(root)')));
     const shown = files.slice(0, SHOW_FILES).map((f) => ({ rel: relOf(f), name: f.name }));
     const label = ROLE_LABELS[role] || role;
     if (dirs.size > 1) {
@@ -768,8 +785,6 @@ import { box, g, dim, wrap, W } from './kit.js';
 
 export const init = (params = {}) => ({ view: 1, cursor: 0, detail: null, back: params.back || 'home' });
 export const hints = '1 settings · 2 clean up · ↑↓ move · Enter open · q back';
-
-const relOf = (file) => (file.dir === '.' ? file.name : `${file.dir}/${file.name}`);
 
 function detailLines(file) {
   const lines = [`  ${g(file.what)}`];
