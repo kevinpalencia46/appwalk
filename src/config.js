@@ -164,8 +164,9 @@ async function cardFor(node, kind) {
   const text = await readFileSafe(node.path);
   const def = CONFIG_TYPES[kind] || CONFIG_TYPES.generic;
   if (!def.parse) return card(node.path, node.name, kind, [], def.note);
+  if (text == null) return card(node.path, node.name, kind, [], `couldn't read ${node.name} — check its permissions.`);
   try {
-    return card(node.path, node.name, kind, def.parse(text || ''), def.note);
+    return card(node.path, node.name, kind, def.parse(text), def.note);
   } catch {
     const note = kind === 'package.json'
       ? "couldn't parse this package.json — it's not valid JSON. Check for missing commas or quotes (npm init -y recreates it)."
@@ -218,6 +219,7 @@ const SMALL_READ = 4096; // bounded prefix read for the code smell — a huge ap
 export async function suggestFiling(map) {
   const byRole = new Map();
   for (const n of map.flat) {
+    if (n.entry) continue;   // the entry file stays where it is
     const rel = relOf(n);   // relOf is defined in Task 2 (src/config.js)
     // name/path first; only read a bounded prefix of code files for the smell
     const text = ROLE_SNIFF_RE.test(n.name) ? (await readFileSafe(n.path))?.slice(0, SMALL_READ) || '' : '';

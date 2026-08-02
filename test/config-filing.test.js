@@ -66,11 +66,13 @@ test('express route wiring is caught by the code smell even without a route name
     'index.js': "const app = require('express')();\napp.get('/', (req, res) => res.send('hi'));",
     'api/users.js': "const router = require('express').Router();\nrouter.get('/users', (req, res) => res.send([]));",
     'routes/posts.js': "const router = require('express').Router();\nrouter.post('/posts', (req, res) => res.send({}));",
+    'routes/comments.js': "const router = require('express').Router();\nrouter.get('/comments', (req, res) => res.send([]));",
   });
   const { groups } = await suggestFiling(await buildMap(root));
   const routes = groupFor(groups, 'route');
   assert.ok(routes, 'route-wiring files are grouped via the code smell');
   assert.match(routes.suggestion, /routes\//);
+  assert.ok(groups.every((g) => g.files.every((f) => f.rel !== 'index.js')), 'the entry file is never suggested for regrouping');
 });
 
 test('tips are present and non-empty', async () => {

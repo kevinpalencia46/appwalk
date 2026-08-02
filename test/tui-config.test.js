@@ -73,6 +73,14 @@ test('view 2 renders filing groups, tips, and a clutter pointer', async () => {
   assert.equal(step(s, '1', { config }).view, 1);
 });
 
+test('view 2 without findings says to run the audit, not "no clutter"', async () => {
+  const config = await data({ 'package.json': '{"main":"index.js"}', 'index.js': '// hi' });
+  const s = step(init(), '2', { config });
+  const out = strip(render(s, { config }));  // no findings key -> audit has not run
+  assert.match(out, /Run the Audit screen/);
+  assert.doesNotMatch(out, /No clutter findings/);
+});
+
 test('q backs out; the screen degrades gracefully with no config data', () => {
   assert.deepEqual(step(init(), 'q', {}), { to: 'home' });
   assert.deepEqual(step(init({ back: 'tree' }), 'q', {}), { to: 'tree' });

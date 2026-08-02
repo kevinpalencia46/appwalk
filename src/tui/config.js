@@ -8,19 +8,19 @@
 //
 // Pure render/step — data comes from data.config (lazy-built + memoized by the
 // shell) so the screen never does I/O.
-import { box, g, dim, wrap, W } from './kit.js';
+import { box, g, dim, wrap, W, sanitize } from './kit.js';
 
 export const init = (params = {}) => ({ view: 1, cursor: 0, detail: null, back: params.back || 'home' });
 export const hints = '1 settings · 2 clean up · ↑↓ move · Enter open · q back';
 
 function detailLines(file) {
-  const lines = [`  ${g(file.what)}`];
+  const lines = [`  ${g(sanitize(file.what))}`];
   for (const s of file.settings || []) {
-    lines.push('', `  ${g(s.key)}: ${s.value}`);
-    lines.push(`      why: ${s.why}`);
-    lines.push(`      you could also: ${s.alternatives}`);
+    lines.push('', `  ${g(sanitize(s.key))}: ${sanitize(s.value)}`);
+    lines.push(`      why: ${sanitize(s.why)}`);
+    lines.push(`      you could also: ${sanitize(s.alternatives)}`);
   }
-  if (file.note) lines.push('', `  ${dim(file.note)}`);
+  if (file.note) lines.push('', `  ${dim(sanitize(file.note))}`);
   return lines.flatMap((l) => (l ? wrap(l, Math.max(30, W() - 8)) : ['']));
 }
 
@@ -31,7 +31,7 @@ function renderSettings(state, cfg) {
     return box(`Your setup — ${state.detail.name}`, ['', ...detailLines(state.detail), ''], { width: 'full' });
   }
   const cursor = Math.min(state.cursor, Math.max(0, files.length - 1));
-  const rows = files.map((f, i) => `  ${i === cursor ? g('▶') : ' '}  ${g(f.name)}${dim(' — ' + f.what.slice(0, 40))}`);
+  const rows = files.map((f, i) => `  ${i === cursor ? g('▶') : ' '}  ${g(sanitize(f.name))}${dim(' — ' + sanitize(f.what).slice(0, 40))}`);
   return box('Your setup — settings', ['', ...rows, ''], { width: 'full' });
 }
 
@@ -43,16 +43,19 @@ function renderClean(cfg, findings) {
     lines.push('  Nothing to tidy — every role is already one folder or under 3 files.', '');
   }
   for (const grp of groups) {
-    lines.push(`  ${g('▶')} ${g(grp.label)} — ${grp.suggestion || grp.note}`);
-    for (const f of grp.files) lines.push(`     ${dim(f.rel)}`);
+    lines.push(`  ${g('▶')} ${g(sanitize(grp.label))} — ${sanitize(grp.suggestion || grp.note)}`);
+    for (const f of grp.files) lines.push(`     ${dim(sanitize(f.rel))}`);
     lines.push('');
   }
   lines.push(`  ${g('Keep it tidy')}`);
   for (const t of tips) lines.push(`   • ${dim(t)}`);
   lines.push('');
-  lines.push(clutter > 0
-    ? `  ${dim(`${clutter} clutter finding${clutter === 1 ? '' : 's'} — open the Audit screen for the specifics.`)}`
-    : `  ${dim('No clutter findings — the Audit screen checks backups, empty folders and TODO files.')}`);
+  const clutterLine = findings == null
+    ? `  ${dim('Run the Audit screen to check for clutter (backups, empty folders, TODO files).')}`
+    : clutter > 0
+      ? `  ${dim(`${clutter} clutter finding${clutter === 1 ? '' : 's'} — open the Audit screen for the specifics.`)}`
+      : `  ${dim('No clutter findings — the Audit screen checks backups, empty folders and TODO files.')}`;
+  lines.push(clutterLine);
   return box('Your setup — clean it up', lines, { width: 'full' });
 }
 

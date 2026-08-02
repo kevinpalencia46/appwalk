@@ -49,7 +49,8 @@ test('.env card is location-only — its value never appears anywhere in the out
   assert.ok(env, '.env appears as a card');
   const blob = JSON.stringify(files);
   assert.doesNotMatch(blob, /SUPER_SECRET_VALUE_123/, 'the .env value must never leak into config output');
-  assert.doesNotMatch(blob, /abc/, 'even a short value string must not leak');
+  assert.equal(env.settings.length, 0, '.env card never parses values into settings');
+  assert.doesNotMatch(env.what + ' ' + env.note, /abc/, 'the value never appears in the card text');
   assert.match(env.note, /never/i);
 });
 
