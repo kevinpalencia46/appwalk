@@ -43,8 +43,17 @@ export function step(state, key, data = {}) {
     const p = flow.order[Math.min(state.cursor || 0, n - 1)];
     return { to: 'viewer', params: { file: p, mode: 'view', back: 'flow' } };
   }
-  if (key === '+') return { ...state, depth: Math.min(MAX_DEPTH, (state.depth || 1) + 1) };
-  if (key === '-') return { ...state, depth: Math.max(1, (state.depth || 1) - 1) };
+  // +/− re-map at a new depth. Shrinking the depth shrinks the tree, so a cursor
+  // that sat near the bottom of the old tree would point past the new last row;
+  // clamp it to the new order length so the highlight never freezes off-screen.
+  if (key === '+' || key === '-') {
+    const depth = key === '+'
+      ? Math.min(MAX_DEPTH, (state.depth || 1) + 1)
+      : Math.max(1, (state.depth || 1) - 1);
+    const f = flowFor(data, depth);
+    const m = f?.order?.length || 0;
+    return { ...state, depth, cursor: Math.min(Math.max(0, state.cursor || 0), Math.max(0, m - 1)) };
+  }
   if (key === 'q') return state.back ? { to: state.back } : { done: true };
   return state;
 }

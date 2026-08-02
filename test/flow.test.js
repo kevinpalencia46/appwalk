@@ -118,6 +118,35 @@ test('static sites: index.html links its scripts', async () => {
   assert.equal(flow.nodes.find((n) => n.name === 'app.js').role, 'util');
 });
 
+test('depth-aware scan: buildFlow at depth 1 reads nothing past depth+1 hops', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'flow-deep-'));
+  await writeFile(join(root, 'package.json'), '{"main":"entry.js"}');
+  await writeFile(join(root, 'entry.js'), "import a from './a.js';");
+  await writeFile(join(root, 'a.js'), "import b from './b.js';\nexport const x = 1;");
+  // b is one hop beyond depth 1. It imports c (which imports d) AND registers a as a
+  // route handler — both only observable if b is actually scanned. A depth-aware scan
+  // must NOT read b, so a stays a plain util and d never enters the map, while a's
+  // "+N more" still shows the chain continues past the cap.
+  await writeFile(join(root, 'b.js'), "import c from './c.js';\napp.get('/x', './a.js');");
+  await writeFile(join(root, 'c.js'), "import d from './d.js';");
+  await writeFile(join(root, 'd.js'), 'export const d = 4;');
+  const map = await buildMap(root);
+  const stack = detectStack(map);
+  const flow = await buildFlow(map, stack, { depth: 1 });
+
+  assert.equal(flow.start, join(root, 'entry.js'));
+  assert.deepEqual(flow.order.map((p) => p.split('/').pop()), ['entry.js', 'a.js'],
+    'only the entry and its depth-1 child are shown');
+  assert.ok(!flow.nodes.some((n) => n.name === 'd.js'), 'd.js is 4 hops out — never read, never a node');
+  const a = flow.nodes.find((n) => n.name === 'a.js');
+  assert.equal(a.more, 1, 'a has one child (b.js) beyond depth, reported as +1 more');
+  assert.equal(a.role, 'util', 'b.js was never scanned: its route registration did not promote a to handler');
+
+  const lines = formatFlow(flow, { depth: 1 });
+  assert.match(lines.join('\n'), /\(\+1 more\)/, 'the chain visibly continues past the depth cap');
+  assert.doesNotMatch(lines.join('\n'), /b\.js|d\.js/, 'files beyond depth never render');
+});
+
 test('unknown patterns and bare packages never crash the analysis', async () => {
   const root = await mkdtemp(join(tmpdir(), 'flow-tough-'));
   await writeFile(join(root, 'package.json'), '{"main":"entry.js"}');

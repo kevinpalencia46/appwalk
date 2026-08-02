@@ -236,18 +236,26 @@ export async function buildFlow(map, stack, { depth = 1 } = {}) {
   const info = new Map();        // path -> { path, name, rel, text }
   const children = new Map();    // path -> [childPath]
   const handlerRefs = new Set();
+  const maxDepth = Math.max(1, depth ?? 1);
 
   if (start && byPath.has(start)) {
-    const queue = [start];
+    // Depth-aware scan: read only the files that can influence the map at this
+    // depth — the entry plus every node within maxDepth hops. Children at
+    // maxDepth+1 hops and beyond are still recorded as child edges off their parent
+    // (so the "+N more" count stays honest) but their files are never read: a
+    // massive app's far reaches don't get regex-scanned just because you asked for
+    // a depth-1 backbone.
+    const queue = [{ p: start, d: 0 }];
     const seen = new Set([start]);
     while (queue.length) {
-      const p = queue.shift();
+      const { p, d } = queue.shift();
       const text = stripComments(p, (await readFileSafe(p)) || '');
       const meta = byPath.get(p) || {};
       info.set(p, { path: p, name: meta.name || basename(p), rel: rel(map.root, p), text });
       children.set(p, [...new Set(scanChildren(p, text, map.root, byPath, handlerRefs))]);
+      if (d >= maxDepth) continue;   // deeper children are counted, not scanned
       for (const k of children.get(p)) {
-        if (!seen.has(k)) { seen.add(k); queue.push(k); }
+        if (!seen.has(k)) { seen.add(k); queue.push({ p: k, d: d + 1 }); }
       }
     }
   }

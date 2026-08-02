@@ -100,3 +100,21 @@ test('flow step: +/− changes depth (clamped) and q goes back home', async () =
   assert.deepEqual(step(init(), 'q', data), { to: 'home' }, 'q backs out to home (the launcher that opened it)');
   assert.deepEqual(step(init({ back: 'tree' }), 'q', data), { to: 'tree' });
 });
+
+test('flow step: +/− clamps a stale cursor to the new depth order length', async () => {
+  const { map, stack } = await fixture();
+  const data = { flowCache: { 1: await buildFlow(map, stack, { depth: 1 }), 2: await buildFlow(map, stack, { depth: 2 }) } };
+  // depth 2 maps 4 nodes (index, routes, db, ping); depth 1 maps 3 (index, routes, ping).
+
+  // A cursor on the last depth-2 row (index 3) survives a shrink to depth 1, where
+  // the last valid row is index 2 — it must clamp, not stay frozen off the tree.
+  const shrunk = step({ ...init({ depth: 2 }), cursor: 3 }, '-', data);
+  assert.equal(shrunk.depth, 1);
+  assert.equal(shrunk.cursor, 2, 'cursor clamps to the last row of the smaller depth-1 tree');
+
+  // Growing the depth keeps a cursor valid, but a cursor past the new length (a
+  // stale state) still clamps rather than pointing at nothing.
+  const grown = step({ ...init({ depth: 1 }), cursor: 9 }, '+', data);
+  assert.equal(grown.depth, 2);
+  assert.equal(grown.cursor, 3, 'cursor clamps to the last row of the depth-2 tree');
+});
