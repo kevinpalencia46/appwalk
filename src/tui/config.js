@@ -13,8 +13,6 @@ import { box, g, dim, wrap, W } from './kit.js';
 export const init = (params = {}) => ({ view: 1, cursor: 0, detail: null, back: params.back || 'home' });
 export const hints = '1 settings · 2 clean up · ↑↓ move · Enter open · q back';
 
-const relOf = (file) => (file.dir === '.' ? file.name : `${file.dir}/${file.name}`);
-
 function detailLines(file) {
   const lines = [`  ${g(file.what)}`];
   for (const s of file.settings || []) {

@@ -79,3 +79,18 @@ test('tips are present and non-empty', async () => {
   assert.ok(Array.isArray(tips) && tips.length >= 3, 'a small set of best-practice tips');
   assert.ok(tips.every((t) => strip(t).length > 0));
 });
+
+test('root files keep a clean rel (no leading slash) and count as (root)', async () => {
+  const root = await fixture({
+    'package.json': '{"main":"index.js"}',
+    'index.js': "import a from './a.handler.js'; import b from './b.handler.js'; import c from './c.handler.js';",
+    'a.handler.js': 'export default () => {};',
+    'b.handler.js': 'export default () => {};',
+    'c.handler.js': 'export default () => {};',
+  });
+  const { groups } = await suggestFiling(await buildMap(root));
+  const handlers = groupFor(groups, 'handler');
+  assert.ok(handlers, 'root handlers still group');
+  assert.ok(handlers.files.every((f) => !f.rel.startsWith('/')), 'no leading slash on root rels');
+  assert.match(handlers.note, /\(root\)/, 'the root directory is labeled, not blank');
+});

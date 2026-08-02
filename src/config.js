@@ -150,7 +150,8 @@ const kindOf = (name) => {
   }
   return 'generic';
 };
-const relOf = (node) => (node.dir === '.' ? node.name : `${node.dir}/${node.name}`);
+// buildMap sets dir:'' for root files (relative(root, root) === ''), never '.'
+const relOf = (node) => (!node.dir || node.dir === '.' ? node.name : `${node.dir}/${node.name}`);
 
 const card = (path, name, kind, settings = [], note) => ({
   path, name, kind,
@@ -227,7 +228,7 @@ export async function suggestFiling(map) {
   const groups = [];
   for (const [role, files] of byRole) {
     if (!GROUP_ROLES.has(role) || files.length < 3) continue;
-    const dirs = new Set(files.map((f) => (f.dir === '.' ? '(root)' : f.dir)));
+    const dirs = new Set(files.map((f) => (!f.dir || f.dir === '.' ? '(root)' : f.dir)));
     const shown = files.slice(0, SHOW_FILES).map((f) => ({ rel: relOf(f), name: f.name }));
     const label = ROLE_LABELS[role] || role;
     if (dirs.size > 1) {
