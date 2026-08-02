@@ -11,10 +11,11 @@ export const ITEMS = [
   { to: 'audit', icon: '!', label: 'Audit for safety & junk', desc: 'Find leaks, clutter & risks' },
   { to: 'ask', icon: '?', label: 'Ask about a file', desc: 'Explain any file plainly' },
   { to: 'glossary', icon: '»', label: 'Learn the words', desc: 'Plain-English definitions' },
+  { to: 'flow', icon: '↦', label: 'See how it fits together', desc: 'Map how the pieces connect' },
 ];
 
-// Launcher grid: buttons arranged in a 2-column grid (rows of 2, 2, 1; the last
-// button is centered). 2D arrows move between buttons, Enter activates.
+// Launcher grid: 6 buttons in a clean 3×2 grid (3 rows of 2 — no center straggler
+// like the old 5-item 2-2-1 layout). 2D arrows move between buttons, Enter activates.
 const COLS = 2;
 const ROWS = Math.ceil(ITEMS.length / COLS);
 const idx = (r, c) => r * COLS + c;
@@ -80,16 +81,13 @@ export function render(state, { root }) {
     return out;
   };
   const header = `   ${g('★ ' + name.toUpperCase())}${state.celebrate ? `   ${g('★ You did it!')}` : ''}`;
-  const rows = [
-    header,
-    '',
-    ...side(buttons[0], buttons[1]),
-    '',
-    ...side(buttons[2], buttons[3]),
-    '',
-    // the fifth button is centered under the two columns above
-    ...buttons[4].map((l) => ' '.repeat(Math.floor((btnW + 2) / 2)) + l),
-  ];
+  const rows = [header, ''];
+  for (let i = 0; i < buttons.length; i += 2) {
+    if (i > 0) rows.push('');
+    // pairs lay out side by side; a lone trailing button centers under the columns
+    if (i + 1 < buttons.length) rows.push(...side(buttons[i], buttons[i + 1]));
+    else rows.push(...buttons[i].map((l) => ' '.repeat(Math.floor((btnW + 2) / 2)) + l));
+  }
   return box('appwalk', rows, { width: 'full' });
 }
 

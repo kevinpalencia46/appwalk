@@ -3,6 +3,7 @@ import { mkLoop, bar } from './kit.js';
 import { buildMap } from '../tree.js';
 import { detectStack, buildTour } from '../walkthrough.js';
 import { allFindings } from '../audit/index.js';
+import { buildFlow } from '../flow.js';
 import { inc as statsInc } from '../stats.js';
 import * as home from './home.js';
 import * as tour from './tour.js';
@@ -11,12 +12,24 @@ import * as tree from './tree.js';
 import * as audit from './audit.js';
 import * as glossaryScreen from './glossary.js';
 import * as tryScreen from './try.js';
+import * as flow from './flow.js';
 
-export const SCREENS = { home, tour, viewer, tree, audit, glossary: glossaryScreen, try: tryScreen };
+export const SCREENS = { home, tour, viewer, tree, audit, glossary: glossaryScreen, try: tryScreen, flow };
 
 // Virtual home routes that land on a real screen with params.
 const ROUTES = {
   ask: { screen: 'viewer', params: { mode: 'input' } },
+};
+
+// The flow map is depth-parametrized, so flows are memoized per depth
+// (data.flowCache). Like findings, they're built lazily the first time the flow
+// screen needs them — eagerly running static analysis over every reachable file
+// would stall the home menu. depth is clamped to [1, MAX_DEPTH].
+const ensureFlow = async (data, depth) => {
+  data.flowCache ??= {};
+  const d = Math.max(1, Math.min(flow.MAX_DEPTH, depth ?? 1));
+  if (!data.flowCache[d]) data.flowCache[d] = await buildFlow(data.map, data.stack, { depth: d });
+  return data.flowCache[d];
 };
 
 export async function shell(root, { screen: start = 'home', map: preMap } = {}) {
@@ -102,6 +115,10 @@ export async function shell(root, { screen: start = 'home', map: preMap } = {}) 
         }
         screen = { name: screen.name, state: next };
       }
+      // On the flow screen, make sure the flow for the (possibly depth-changed)
+      // state exists before the pure render reads it. Covers both first entry
+      // (home -> flow) and +/− depth changes.
+      if (screen.name === 'flow') await ensureFlow(data, screen.state.depth || 1);
       paint();
       return true;
     },
