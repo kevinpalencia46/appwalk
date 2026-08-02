@@ -83,7 +83,7 @@ export async function buildTour(map, stack) {
     const pkgPath = n('package.json')?.path;
     steps.push({
       title: 'Your package.json',
-      body: 'Your app has a file called package.json — it\'s a JSON file.\n\nJSON is just a way of writing settings as text — think of it as your app\'s ID card.\n\nThen there are scripts: shortcuts that run your app.\n\nAnd dependencies: libraries your app relies on — code other people wrote that you install into your project.',
+      body: 'Your app has a file called package.json — it\'s a JSON file.\n\nJSON is just a way of writing settings as text — think of it as your app\'s ID card.\n\nThen there are scripts: shortcuts that run your app.\n\nAnd dependencies (deps): libraries your app relies on — code other people wrote that you install into your project.',
       files: pkgPath ? [pkgPath] : [],
       tags: ['peek'],
     });
@@ -178,7 +178,7 @@ export async function buildTour(map, stack) {
   // gets a one-line plain-words intro before the audit promises to spot risky ones.
   const depIntro = nodeApp
     ? ''
-    : ' (a dependency is a library your app relies on — we\'ll spot any unused ones here)';
+    : ' (a dependency (deps) is a library your app relies on — we\'ll spot any unused ones here)';
   steps.push({
     title: 'What to watch',
     body: `Next, run \`appwalk audit\` — the safety check.\n\nIt looks for leaked secrets, leftover clutter, duplicate files, and risky dependencies${depIntro}.\n\nEvery finding comes with a fix — I\'ll walk you through it.`,

@@ -116,7 +116,7 @@ export function aboutFile(node, wrapWidth = 34) {
       '  scripts',
       ...wrap('Commands you can run, like npm run dev; each one is a shortcut for a longer command. You\'d add one when you find yourself typing the same command over and over.', wrapWidth).map((l) => `  ${l}`),
       '',
-      '  dependencies',
+      '  dependencies (deps)',
       ...wrap('Libraries your app relies on — code other people wrote that you "install" into your project. Fewer is safer; each one is code you\'re trusting.', wrapWidth).map((l) => `  ${l}`),
     );
   }
