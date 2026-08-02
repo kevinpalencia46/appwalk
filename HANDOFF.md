@@ -1,73 +1,59 @@
-# appwalk — handoff brief for AI assistants
+# appwalk — handoff for AI assistants (updated 2026-08-01)
 
-> Read this to get fully up to speed on appwalk: what it is, what's built, how it works, and the open product questions I want your help with (monetization + beginner interface).
+> Paste this into Claude chat to get fully up to speed. The product has shipped and evolved — this is the current, live state.
 
-## The one-liner
+## What it is
 
-**appwalk is a terminal tool that walks a person through their own app, front to back — the way a senior dev would on a guided tour — and teaches them the language (refactoring, auth, RLS, API keys…) as it goes.**
+**appwalk-cli** (published on npm as `appwalk-cli@0.1.1`) is a terminal tool that walks a person through their own app, front to back — the way a senior dev would on a guided tour — and teaches them the language (refactoring, auth, RLS, API keys…) as it goes. Built for people who "vibe-code": they shipped real apps with AI but don't understand the code underneath and worry their code is junk or they leaked their keys.
 
-## The problem it solves
+Run it anywhere: `npx appwalk-cli`. Zero install, zero dependencies, works with no AI key.
 
-A fast-growing wave of people now "vibe-code": they ship real apps by prompting AI, but **don't understand the code underneath** and are anxious about two things:
+## What's built (all live, 89 tests)
 
-1. *"Is my code full of junk?"* — dead files, duplicates, clutter, things that never got pruned.
-2. *"Did I leak my keys?"* — API keys, database URLs, `.env` committed to git.
+**The shell** — `appwalk-cli` opens a framed, app-like terminal menu (home): tour · tree · audit · ask · glossary. A zero-dependency ANSI TUI (hand-written, no libs), built for beginners: big boxes, prominent "Press ENTER", a small ASCII mascot, `h` = home from anywhere.
 
-Existing tools (Cursor, Copilot, security scanners) all **assume the user can code**. appwalk assumes they can't and walks them to competence — while giving them the peace of mind that their app is clean and safe. That's the gap.
+- **Guided tour** — one framed step at a time, Enter to continue, `o` opens the file, `g` glosses a term, **`t` runs an appwalk-chosen command in a small box so you see it work** (allowlisted, injection-safe).
+- **Explain-on-open** — opening a file shows a right-hand "About this file" panel: what the file type is, why it says "408 bytes", and for package.json what scripts + dependencies are and why you'd add one.
+- **Folder tree** — expandable, entry points green, `.env` shown as *location only* (values never rendered, in any mode).
+- **Audit** — a checklist with a score ("3 of 5 clean"), red only for real secrets, **every finding carries a plain fix**, and a copy-ready **"ask your AI to fix this"** prompt (`c` key). Covers secrets, duplicates, clutter, deps, git.
+- **Glossary** — split view: terms on the left, definition on the right, live as you arrow, only terms seen so far.
+- **AI layer (bring your own key)** — `appwalk-cli explain <file>`: Anthropic (claude-sonnet-5 lite / claude-opus-5 pro), DeepSeek, local Ollama, Claude Code CLI. The core runs with ZERO AI; AI is opt-in and shows its real token count + cost every time. The choose-your-model step teaches lite vs pro vs local vs Claude Code — what each is good at, cost, and how to wire it.
+- **Security teaching** — `.env` explained everywhere, audit fixes explain *rotating* properly (rotate → gitignore → purge history, in that order), plus a copy-ready "ask your AI to fix this" prompt on every finding.
+- **doctor --report** — copy-pasteable masked issue block. **Local instrumentation** (`~/.appwalk/stats.json`) to measure which feature is the paid hook — no telemetry home.
+- **README + FAQ** — the honest-credits story front and center ("your walkthrough is free, AI only costs if you ask, and we show the price every time").
 
-## What's built (all working, tested, live on the Pi)
+## Architecture
 
-A zero-dependency Node CLI (`node --test` = 40 passing tests). Run it inside any project:
+Node 20+ ESM, zero runtime deps. `src/tui/` is the ANSI shell (pure `render(state,data)` + `step(state,key,data)` per screen + a shell loop); `src/audit/`, `src/tree.js`, `src/walkthrough.js`, `src/glossary.js` are the data layer; `src/ai/` is the BYO-key layer; `src/tui/try.js` is the sanctioned I/O exception (runs appwalk-chosen commands). Terminal-escape injection is neutralized everywhere (a shared `sanitize()`).
 
-| Command | What it does |
-|---|---|
-| `appwalk` | The **guided tour**: what the app is → how it starts → your folders → inside the entry file (**with git history**: "added 3 weeks ago, changed 14 times") → a **choose-your-model step** → what to watch. Works with **zero AI**. |
-| `appwalk tree` | A **clickable file-map browser** in the terminal: arrow keys, Enter opens a file, duplicate/merge markers shown. |
-| `appwalk audit --report` | **Secrets** (masked, never raw), **duplicates** ("these could be merged"), **clutter** (.bak/.tmp/todo-only), **deps** (unused/missing lockfile), **git hygiene**. `--report` writes a shareable HTML. |
-| `appwalk monitor` | Runs the app, tails logs, flags crash signatures. |
-| `appwalk explain <file>` | **Live AI explanation** of any file in plain language. |
-| `appwalk glossary` | The **term teacher**: ~24 plain-language entries (what it is / why it matters / when you'd use it). |
-| `appwalk doctor` | Self-check. |
+## Monetization plan (from the earlier brief — settled)
 
-## Architecture (the clever part)
+- **One-time purchase** $39 for the paid tier; **secrets scan stays free forever** (it's the trust moment).
+- Two tracks: **agencies** ("Ship it with receipts" — the HTML report is a client deliverable) and **individuals** ("You shipped it. Now understand it.").
+- Free = tour, tree, glossary, secrets scan, doctor. Paid = full audit (duplicates/deps/git), `--report` HTML, monitor, AI quota.
+- License: **AGPL-3.0** (decided).
+- Instrumentation decision rule: if <20% of users configure an AI key, `explain` is not the paid hook — the audit + HTML report is. Measure, don't guess.
 
-**Deterministic core + BYO-key AI.** Everything except `explain` runs with **zero AI and zero cost** — the map, tour, audit, glossary, monitor, and report are rule-driven. AI is a pluggable layer the user brings their own key to:
+## Current status
 
-- **Providers wired + verified** against real API responses: Anthropic (`claude-sonnet-5` lite / `claude-opus-5` pro), DeepSeek (`deepseek-v4-flash`), local Ollama (`llama3.2:3b`, free), Claude Code CLI.
-- **Cost-transparent**: every AI answer shows the **model + real token count + cost**. The walkthrough's "choose your model" step teaches lite vs pro vs local vs Claude Code — **what each is good at**, cost, and how to wire it. A Claude Code power user discovers they don't need a paid model for a "what does this mean?" question.
-- **The `.env` is shown as a location, never its values** — in every mode.
+- **Live on npm**: `appwalk-cli@0.1.1` — `npx appwalk-cli` works. (The bare name `appwalk` is blocked by npm's anti-typosquatting rule against the old `app-walk` package; `appwalk-cli` is the permanent identity.)
+- **The shell + teaching layer are done and reviewed.** 89 tests, subagent-driven with per-batch review; every Critical/Important bug caught and fixed.
+- Repo: `~/appwalk` on the Pi. Run `node ~/appwalk/bin/appwalk.js` to try it live; `cd ~/appwalk && npm link` then `appwalk` for the clean command.
 
-## Why it's buildable and sellable
+## Aesthetics — where Kevin wants your help
 
-- **Near-zero marginal cost**: users bring their own AI key; the deterministic core costs nothing.
-- **The market is real and growing**: AI-shipped apps whose owners can't explain a single file.
-- **It dogfoods real experience**: the author has been doing exactly this audit methodology by hand for weeks.
+Kevin wants to work on the **visual design** of the terminal UI. It currently looks functional-but-plain (framed boxes, a fixed palette: green good / blue info / yellow watch / red danger). The TUI is the marketing — people share a 20-second capture of a beautiful thing scanning their project. Help with:
+- A **distinctive visual identity** for the terminal UI that still works in ANSI (borders, glyphs, spacing, palette, the mascot) — something worth a screenshot/TikTok.
+- **Typography/spacing polish** in the framed screens.
+- The **mascot character** design.
+- Whether any of it translates to the **landing page** (which isn't built yet).
 
-## The current state
+## Next up (the funnel, not built)
 
-- Spec + 13-task implementation plan, executed via subagent-driven development with per-task review (35→40 tests, final review READY).
-- Live on Kevin's Pi at `~/appwalk`, key wired, verified working (`appwalk` tour + `appwalk explain` both demoed live).
-- The codebase is small, clean, zero-dependency, ESM.
-
-## Open questions I want your help with
-
-### 1. Monetization (primary)
-- **Freemium** seems obvious: free = tour + tree + glossary + secrets scan; **paid** = full audit (duplicates/deps/git), monitor, HTML report, AI quota. What's the right price, one-time vs subscription, and where's the line between free and paid?
-- **Distribution**: `npx appwalk`? A paid npm package? A website with a demo? Landing page? TikTok/Shorts content (the author runs an air-fryer content channel — could do a "code walkthrough" channel)?
-- **Who pays**: individual vibe-coders? Bootcamp students? Agencies that ship AI apps to clients and need to hand over "clean + explained" code? The last one is an interesting B2B angle.
-- **The honest-credits angle as marketing**: "your walkthrough is free, AI only costs if you ask, and we show the price every time" is a trust story most AI tools don't tell.
-
-### 2. The beginner interface (secondary)
-- The tool runs in the terminal (Termius). How "GUI-like" should it get? (A home/menu screen, a real expandable folder tree, panels/borders/colors, syntax highlighting, a status bar.)
-- What makes a *new coder* feel confident vs intimidated in a terminal UI? (Clear prompts, "press Enter to continue", progress, no jargon, praise/encouragement.)
-- Should there be a web version eventually, or is terminal-first the right call for credibility + zero hosting cost?
-
-## If you want to see it
-
-- `~/appwalk` on the Pi (Node 20+, `npm test` = 40 pass).
-- `appwalk walk` inside any project → the tour.
-- `appwalk explain <file>` → live AI explanation.
+1. **Free web secrets scanner** — paste a public GitHub URL → instant leaked-secrets scan, no signup. The shareable "oh god" moment; the fix is "install the CLI." Reuses the existing audit/secrets scanner.
+2. **Landing page + recorded terminal demo** (asciinema or screen capture, 9:16-crop friendly for Shorts).
+3. **Payment gate** (Polar or Lemon Squeezy) behind the paid tier.
 
 ---
 
-*Written 2026-08-01. Live repo at ~/appwalk; spec at docs/superpowers/specs/2026-08-01-appwalk-design.md; plan at docs/superpowers/plans/2026-08-01-appwalk.md.*
+*Live repo: ~/appwalk · spec: docs/superpowers/specs/ · plans: docs/superpowers/plans/ · npm: appwalk-cli@0.1.1*
