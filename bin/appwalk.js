@@ -9,6 +9,7 @@ import { allFindings, CATEGORIES, cleanCount } from '../src/audit/index.js';
 import { explain, providerAvailable, pickLite } from '../src/ai/index.js';
 import { educateText } from '../src/ai/educate.js';
 import { monitor } from '../src/monitor.js';
+import { buildFlow } from '../src/flow.js';
 import { renderReport } from '../src/report.js';
 import { inc as statsInc, statsPath } from '../src/stats.js';
 import { writeFile } from 'node:fs/promises';
@@ -25,8 +26,12 @@ const HELP = `appwalk — walk your app, understand your code
   appwalk doctor       self-check`;
 
 const map = () => buildMap(root);
+const jsonOut = (data) => { console.log(JSON.stringify(data)); process.exit(0); };
 
-if (mode === 'doctor') {
+if (mode === 'stack') {
+  const m = await map();
+  jsonOut(detectStack(m));
+} else if (mode === 'doctor') {
   const v = process.versions.node.split('.')[0];
   console.log(`node: ${process.version} ${+v >= 20 ? 'OK' : 'need >= 20'}`);
   const m = await map();
@@ -53,17 +58,27 @@ if (mode === 'doctor') {
     console.log('\n' + issue);
   }
 } else if (mode === 'tree') {
-  const m = await map(); if (!m.flat.length) { console.log('appwalk: no files found. (FAQ: no-files-found)'); process.exit(0); }
+  const m = await map();
+  if (process.argv.includes('--json')) jsonOut({ root: m.root, hasEnv: m.hasEnv, files: m.flat.map((n) => ({ name: n.name, dir: n.dir, lang: n.lang, size: n.size, entry: !!n.entry })) });
+  if (!m.flat.length) { console.log('appwalk: no files found. (FAQ: no-files-found)'); process.exit(0); }
   await shell(root, { screen: 'tree', map: m });
   process.exit(0);
+} else if (mode === 'flow') {
+  const m = await map();
+  const s = detectStack(m);
+  const f = await buildFlow(m, s, { depth: 3 });
+  jsonOut(f);
 } else if (mode === 'glossary') {
-  const q = process.argv[3]; if (!q) { console.log(TERMS.map((t) => t.term).join('\n')); }
+  const q = process.argv[3];
+  if (process.argv.includes('--json')) jsonOut(TERMS);
+  if (!q) { console.log(TERMS.map((t) => t.term).join('\n')); }
   else { const e = lookup(q); console.log(e ? renderTerm(e) : `no term "${q}". Try: appwalk glossary (FAQ: glossary)`); }
 } else if (mode === 'explain') {
   const file = process.argv[3]; if (!file) { console.log('usage: appwalk explain <file> (FAQ: usage)'); process.exit(0); }
   statsInc('ran_explain');
   const text = await readFileSafe(join(root, file));
   const r = await explain(`Explain this file for a beginner:\n\n${(text || '').slice(0, 6000)}`, { lite: true });
+  if (process.argv.includes('--json')) jsonOut({ file, text: r.text, role: r.role });
   console.log(r.text); console.log(`\n[${r.model} · ~${r.tokens} tokens · ~$${r.costUsd.toFixed(6)}]`);
   if (!providerAvailable()) console.log('\n' + educateText());
 } else if (mode === 'audit') {
