@@ -27,3 +27,31 @@ test('a failure record carries an empty array, never undefined', () => {
   assert.deepEqual(recordFor({ full_name: 'a/b', stratum: 'lovable' }, 'timeout', null).findings, []);
   assert.deepEqual(recordFor({ full_name: 'a/b', stratum: 'lovable' }, 'clone_failed').findings, []);
 });
+
+import { assertScannedTheClone } from '../study/harness.js';
+
+test('accepts findings that live inside the clone', () => {
+  assert.doesNotThrow(() =>
+    assertScannedTheClone([{ file: '/clones/a__b/src/x.ts' }], '/clones/a__b', 'a/b'));
+});
+
+test('throws when the audit scanned somewhere else entirely', () => {
+  assert.throws(
+    () => assertScannedTheClone([{ file: '/home/ren/appwalk/test/fixture.js' }], '/clones/a__b', 'a/b'),
+    /scanned the wrong directory/,
+  );
+});
+
+test('findings without a file path do not trip the guard', () => {
+  assert.doesNotThrow(() => assertScannedTheClone([{ kind: 'env_in_git' }], '/clones/a__b', 'a/b'));
+});
+
+test('deps labels are descriptions, not paths — the guard ignores them', () => {
+  assert.doesNotThrow(() =>
+    assertScannedTheClone([{ file: 'package.json → zod' }], '/clones/a__b', 'a/b'));
+});
+
+test('the .env sentinel is relative and does not trip the guard', () => {
+  assert.doesNotThrow(() =>
+    assertScannedTheClone([{ file: '.env', kind: 'env_in_git' }], '/clones/a__b', 'a/b'));
+});
