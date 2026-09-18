@@ -16,6 +16,7 @@ const PATTERNS = [
   { kind: 'private_key', re: /-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/g, label: 'private key block', fix: 'This key has been committed — treat it as leaked. Rotate it: generate a new key pair, remove this key file from the repo, and never commit private keys — load them from a gitignored path or a secrets manager. Then purge history (git filter-repo).' },
   { kind: 'db_url', re: /(postgres|mysql|mongodb)(\+srv)?:\/\/[^\s"']+:[^\s"']+@/g, label: 'database URL with credentials', fix: 'This URL has been committed — treat the credentials as leaked. Rotate the database password, move the connection string to .env (gitignored), then purge history (git filter-repo). Gitignoring alone does NOTHING for credentials already committed.' },
   { kind: 'generic_key', re: /["'](api[_-]?key|secret|password|token)["']\s*[:=]\s*["'][A-Za-z0-9_\-.]{12,}["']/gi, label: 'hardcoded key/password', fix: 'This key has been committed — treat it as leaked. Rotate it: at the service that issued it, revoke it and issue a new one; put the new key in .env; then gitignore .env and purge history (git filter-repo). Gitignoring alone does NOTHING for a key already committed.' },
+  { kind: 'supabase_service_role', re: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}/g, label: 'Supabase service_role key (bypasses row-level security)', fix: 'This key has been committed — treat it as leaked. The service_role key ignores EVERY row-level security policy, so anyone holding it can read and write your whole database. Rotate it: in Supabase go to Project Settings → API and rotate the service_role key; put the new one in .env and use it ONLY server-side, never in client code; then purge history (git filter-repo). Your anon key is fine in client code — service_role never is.' },
 ];
 
 // Canonical sample/test values from vendor docs — never real secrets, so never findings.
@@ -27,6 +28,23 @@ const KNOWN_SAMPLE = new Set([
 function mask(s) {
   if (s.length <= 8) return s;
   return s.slice(0, 4) + '…' + s.slice(-4);
+}
+
+// Supabase keys are JWTs whose role claim decides everything: the anon key is
+// PUBLIC BY DESIGN and ships in every client bundle legitimately, while
+// service_role bypasses row-level security completely. A regex cannot separate
+// them — the role lives inside the base64 payload — so decode it and read the
+// claim. The signature is never verified: we are classifying, not authenticating.
+export function decodeSupabaseRole(token) {
+  const parts = String(token).split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    if (claims?.iss !== 'supabase') return null;
+    return typeof claims.role === 'string' ? claims.role : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function scanSecrets(map) {
@@ -44,6 +62,11 @@ export async function scanSecrets(map) {
         const m = p.re.exec(lines[i]);
         if (m) {
           if (KNOWN_SAMPLE.has(m[0])) continue; // sample/test keys are not findings
+          // A Supabase JWT is only a finding when it carries service_role. The anon
+          // key matches the same shape and lives in client code legitimately, so
+          // flagging it would bury every real finding in noise. `continue` (not
+          // `break`) so an anon key never masks a different secret on the same line.
+          if (p.kind === 'supabase_service_role' && decodeSupabaseRole(m[0]) !== 'service_role') continue;
           out.push({ file: node.path, line: i + 1, kind: p.kind, category: 'secrets', snippet: mask(m[0]), label: p.label, fix: p.fix });
           break; // one finding per line
         }
