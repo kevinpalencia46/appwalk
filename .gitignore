@@ -5,3 +5,6 @@ dist/
 build/
 .superpowers/
 appwalk-report.html
+study/corpus.jsonl
+study/findings.jsonl
+study/clones/
