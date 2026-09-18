@@ -208,6 +208,23 @@ ships Supabase by default, so this was the most consequential leak the
 tool could not see."
 ```
 
+#### Discovered during Task 1: the `.env` blind spot
+
+`scanSecrets` deliberately skips `.env` entirely — "shown as a location, never
+its values" is a stated project principle and must not change. Confirmed in a
+real Lovable app: its Supabase key lives in `.env` and nowhere else, so the
+`supabase_service_role` detector never sees it.
+
+Consequence for the study: when a repo commits its `.env`, we report
+`env_in_git` but cannot say **what** is inside it. A committed `.env` holding an
+anon key and one holding a service_role key are indistinguishable to us, and the
+second is catastrophic while the first is close to harmless.
+
+This is the right trade — reading `.env` values to grade them would break the
+promise the tool is built on. But it must be stated in the report's limitations,
+and it means `supabase_service_role` counts are a **floor, not a total**: they
+capture keys pasted into source, not keys sitting in a committed `.env`.
+
 ---
 
 ### Task 2: Build the repo corpus
