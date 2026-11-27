@@ -1,0 +1,3 @@
+# Extra paths the files tool may READ (never write). Old Ren knowledge, project docs.
+read: []
+#  - ~/ren/knowledge

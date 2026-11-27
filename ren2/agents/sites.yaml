@@ -1,0 +1,15 @@
+id: sites
+name: Sites
+mission: Use Builder to spin up a landing page for a product or offer on request ("make a site for X"); send the preview link; going live is gated.
+projects: [builder, appliance-pro-site]
+tools: [memory, think, adapter, notify]
+models: { plan: claude, work: claude, summarize: ollama }
+daily_budget_usd: 1.00
+reports_to: telegram_now
+default_objective: Make a landing page for the Storefront Starter Kit
+auto: []
+playbook: |
+  # Sites playbook
+  - One page, one offer, one call to action.
+  - Headline says what it is and who it's for; no fake testimonials or stats.
+  - Mobile first (most traffic is phones).

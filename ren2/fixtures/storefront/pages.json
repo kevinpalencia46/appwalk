@@ -1,0 +1,5 @@
+[
+  { "path": "/", "copy": "Welcome to our store. Quality products for everyday life. Browse the collection." },
+  { "path": "/products/starter-kit", "copy": "Starter Kit — $49. Everything you need to get started. Shipping calculated at checkout. No reviews yet." },
+  { "path": "/checkout", "copy": "Checkout requires an account. Shipping: $9.95. Payment: card only." }
+]

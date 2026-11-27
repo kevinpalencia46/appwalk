@@ -1,0 +1,5 @@
+[
+  { "id": "p1", "name": "Starter Kit", "price": 49, "status": "live", "shipping": 9.95 },
+  { "id": "p2", "name": "Pro Bundle", "price": 129, "status": "live", "shipping": 9.95 },
+  { "id": "p3", "name": "Refill Pack", "price": 19, "status": "draft", "shipping": 4.95 }
+]

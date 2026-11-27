@@ -1,0 +1,6 @@
+[
+  { "id": "pr1", "segment": "trades", "business": "Example Plumbing Co (fixture)", "trade": "plumbing", "city": "Sampletown", "notes": "Books jobs by phone only; no online booking." },
+  { "id": "pr2", "segment": "trades", "business": "Sample Electric (fixture)", "trade": "electrical", "city": "Sampletown", "notes": "Website has no quote form; slow email replies in reviews." },
+  { "id": "pr3", "segment": "trades", "business": "Demo HVAC Services (fixture)", "trade": "HVAC", "city": "Example City", "notes": "Seasonal spikes; misses calls during peak." },
+  { "id": "pr4", "segment": "trades", "business": "Placeholder Roofing (fixture)", "trade": "roofing", "city": "Example City", "notes": "Sends paper quotes; no follow-up." }
+]

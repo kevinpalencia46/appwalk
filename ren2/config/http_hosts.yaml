@@ -1,0 +1,2 @@
+# Hosts the http tool may send non-GET requests to. GET to public hosts is always allowed.
+write_hosts: []

@@ -1,0 +1,23 @@
+{
+  "name": "ren2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ren 2 — a small autonomous operating core: agents, tasks, memory, Telegram and an iPad dashboard in one process.",
+  "type": "module",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --disable-warning=ExperimentalWarning --max-old-space-size=384 dist/src/main.js",
+    "test": "npm run build && node --disable-warning=ExperimentalWarning --test --test-concurrency=1 dist/tests/*.test.js",
+    "smoke": "npm run build && node --disable-warning=ExperimentalWarning dist/scripts/smoke.js",
+    "migrate": "node --disable-warning=ExperimentalWarning dist/src/migrate.js",
+    "import-knowledge": "node --disable-warning=ExperimentalWarning dist/scripts/import-knowledge.js"
+  },
+  "dependencies": {
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.7",
+    "typescript": "5.9.3"
+  }
+}

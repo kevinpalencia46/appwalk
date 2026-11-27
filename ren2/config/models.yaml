@@ -1,0 +1,26 @@
+# Model routing for Ren 2. Each task kind lists models in order; the router skips any
+# whose provider is off, unconfigured, down or over budget, and falls through on errors.
+# Cheap/local first for summaries and classification; strong models only for planning
+# and anything that goes out to real people.
+#
+# Prices are USD per million tokens. VERIFY against the providers' current price pages —
+# they are estimates used only for the budget log. The claude CLI reports its own cost.
+
+models:
+  claude:          { provider: anthropic, id: claude-sonnet-5, in_per_mtok: 3,  out_per_mtok: 15 }
+  claude-strong:   { provider: anthropic, id: claude-opus-5,   in_per_mtok: 15, out_per_mtok: 75 }
+  deepseek:        { provider: deepseek,  id: deepseek-v4-flash, in_per_mtok: 0.27, out_per_mtok: 1.1 }
+  kimi:            { provider: kimi,      id: kimi-k2,         in_per_mtok: 0.6, out_per_mtok: 2.5 }  # VERIFY model id
+  ollama:          { provider: ollama,    id: "llama3.2:3b" }
+  ollama-embed:    { provider: ollama,    id: nomic-embed-text }
+  claude-cli:      { provider: claude_code, id: haiku }
+  claude-cli-strong: { provider: claude_code, id: sonnet }
+
+routes:
+  chat:            [claude, claude-cli, deepseek, ollama]
+  plan:            [claude, claude-cli-strong, claude-cli, deepseek]
+  write:           [claude-strong, claude, claude-cli-strong, deepseek]   # goes out to real people
+  research:        [claude, claude-cli, deepseek, ollama]
+  code:            [claude-cli-strong]
+  cheap-summarize: [ollama, deepseek, claude-cli, claude]
+  embed:           [ollama-embed]

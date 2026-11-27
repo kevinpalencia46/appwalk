@@ -1,0 +1,4 @@
+[
+  { "id": "l1", "name": "Example Lead A", "stage": "new" },
+  { "id": "l2", "name": "Example Lead B", "stage": "contacted" }
+]

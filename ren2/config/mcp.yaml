@@ -1,0 +1,5 @@
+# MCP servers Ren 2 can call (Streamable HTTP). token_env names a .env variable.
+servers: {}
+#  ren-hub:
+#    url: http://127.0.0.1:8100/mcp     # VERIFY the old Ren MCP URL
+#    token_env: REN_MCP_TOKEN
