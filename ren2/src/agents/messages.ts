@@ -24,6 +24,8 @@ export interface Message {
   origin_task_id: number | null;
   reply_to: number | null;
   key: string | null;
+  priority: number;
+  idle_only: number;
   created_at: string;
   updated_at: string;
 }
@@ -33,15 +35,15 @@ export const TEAM = '*';
 export class Messages {
   constructor(private db: DB) {}
 
-  send(m: { from: string; to: string; kind: MessageKind; subject: string; body?: string; project?: string | null; originTaskId?: number | null; replyTo?: number | null; key?: string }): Message {
+  send(m: { from: string; to: string; kind: MessageKind; subject: string; body?: string; project?: string | null; originTaskId?: number | null; replyTo?: number | null; key?: string; priority?: number; idleOnly?: boolean }): Message {
     if (m.key) {
       const prev = this.db.prepare('SELECT * FROM messages WHERE key = ?').get(m.key) as Message | undefined;
       if (prev) return prev; // idempotent per step: a re-run after restart doesn't double-send
     }
     const t = nowIso();
     const r = this.db
-      .prepare('INSERT INTO messages (from_agent, to_agent, kind, subject, body, project, status, origin_task_id, reply_to, key, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-      .run(m.from, m.to, m.kind, m.subject.slice(0, 300), (m.body ?? '').slice(0, 8000), m.project ?? null, 'unread', m.originTaskId ?? null, m.replyTo ?? null, m.key ?? null, t, t);
+      .prepare('INSERT INTO messages (from_agent, to_agent, kind, subject, body, project, status, origin_task_id, reply_to, key, priority, idle_only, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      .run(m.from, m.to, m.kind, m.subject.slice(0, 300), (m.body ?? '').slice(0, 8000), m.project ?? null, 'unread', m.originTaskId ?? null, m.replyTo ?? null, m.key ?? null, m.priority ?? 0, m.idleOnly ? 1 : 0, t, t);
     const msg = this.get(Number(r.lastInsertRowid))!;
     emit('message', msg);
     return msg;
@@ -58,9 +60,9 @@ export class Messages {
     emit('message', this.get(id));
   }
 
-  /** Requests waiting for this agent, oldest first. */
+  /** Requests waiting for this agent: high priority first (e.g. Worklane sign-ups), then oldest. */
   pendingRequests(agentId: string): Message[] {
-    return this.db.prepare("SELECT * FROM messages WHERE to_agent = ? AND kind = 'request' AND status = 'unread' ORDER BY id").all(agentId) as unknown as Message[];
+    return this.db.prepare("SELECT * FROM messages WHERE to_agent = ? AND kind = 'request' AND status = 'unread' ORDER BY priority DESC, id").all(agentId) as unknown as Message[];
   }
 
   inbox(agentId: string, limit = 20): Message[] {

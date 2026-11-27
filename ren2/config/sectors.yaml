@@ -1,0 +1,52 @@
+# Sectors Ren runs. Each has goals Ren plans against, the agents that work it, and the
+# numbers on the Home scoreboard. Edit freely — Ren reads this every plan.
+# `metric` names a number Ren 2 can compute (see src/sectors.ts). Adapter numbers are MOCK
+# until the live API routes are mapped.
+
+sectors:
+  media:
+    name: Media (Showrunner)
+    why: Grow our channels to monetization with content in our niches.
+    agents: [media]
+    # Fill in our niches — Media makes content for these. (Needs Kevin)
+    niches: []
+    channels: [youtube, instagram, tiktok]
+    goals:
+      - { id: consistency, text: "Post consistently: 5 videos/clips a week across channels", metric: videos_made_7d, target: 5 }
+      - { id: followers, text: "Grow followers on every channel", metric: followers_total }
+      - { id: learn, text: "Weekly: find what's working and what isn't, from analytics", metric: analytics_reviews_7d, target: 1 }
+    # Monetization milestones — VERIFY against each platform's current rules before relying on them.
+    milestones:
+      - { platform: youtube, text: "YouTube Partner Program: 1,000 subscribers + 4,000 watch hours (12 months) or 10M Shorts views (90 days)" }
+      - { platform: tiktok, text: "TikTok Creator Rewards: 10,000 followers + 100,000 views (30 days)" }
+      - { platform: instagram, text: "Instagram: monetization options vary by country/account — check eligibility" }
+
+  websites:
+    name: Websites (Builder + Worklane)
+    why: Find local BC businesses with no or outdated sites, build them demos, sell them on Worklane.
+    agents: [scout, sites, outreach]
+    # Areas Scout sweeps, in rotation.
+    areas: [Kamloops, Kelowna, Vernon, Penticton, Prince George, Nanaimo, Victoria, Abbotsford, Chilliwack, Surrey]
+    goals:
+      - { id: signups-first, text: "Worklane demo sign-ups always go first — build their demo next", metric: open_signup_requests, target: 0 }
+      - { id: sweeps, text: "Sweep a BC area every weekday; rate and list candidates", metric: sweeps_7d, target: 5 }
+      - { id: demos, text: "Build 3 Ren-approved demo sites a week when the system is idle", metric: demos_built_7d, target: 3 }
+      - { id: reviews, text: "Review every finished site with Kevin; turn decisions into skills", metric: open_reviews, target: 0 }
+      - { id: skills, text: "Keep growing web design skills — general and per niche", metric: web_skills, target: 6 }
+
+  storefronts:
+    name: Storefronts
+    why: Watch every property (Worklane, book site, shop, later Amazon/dropshipping) and grow conversions.
+    agents: [analyst]
+    goals:
+      - { id: watch, text: "Analyse every live property weekly; find the biggest leak on each", metric: property_reviews_7d, target: 3 }
+      - { id: conversions, text: "More sign-ups, sales and orders on every property", metric: conversions_30d }
+      - { id: expand, text: "Research Amazon resale and dropshipping niches before we launch", metric: planned_properties }
+
+  ops:
+    name: Ren itself
+    why: Stay healthy, cheap and honest.
+    agents: [ops]
+    goals:
+      - { id: health, text: "No open health alerts", metric: open_alerts, target: 0 }
+      - { id: spend, text: "Stay inside the daily budget", metric: spend_today }

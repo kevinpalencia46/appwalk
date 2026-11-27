@@ -1,0 +1,8 @@
+[
+  { "id": "c-kam-1", "area": "Kamloops", "business": "Sample Plumbing (fixture)", "niche": "plumbing", "site": "none", "score": 9, "reason": "No website, 40+ Google reviews, phone-only booking" },
+  { "id": "c-kam-2", "area": "Kamloops", "business": "Demo Dental (fixture)", "niche": "dental", "site": "outdated (2014, not mobile)", "score": 8, "reason": "Site not mobile-friendly, no online booking" },
+  { "id": "c-kam-3", "area": "Kamloops", "business": "Placeholder Cafe (fixture)", "niche": "cafe", "site": "Facebook only", "score": 6, "reason": "Active social, no menu online" },
+  { "id": "c-kel-1", "area": "Kelowna", "business": "Example Landscaping (fixture)", "niche": "landscaping", "site": "none", "score": 9, "reason": "No website, seasonal demand, strong reviews" },
+  { "id": "c-kel-2", "area": "Kelowna", "business": "Sample Auto Repair (fixture)", "niche": "auto repair", "site": "outdated (broken contact form)", "score": 7, "reason": "Contact form broken, no hours listed" },
+  { "id": "c-ver-1", "area": "Vernon", "business": "Demo Salon (fixture)", "niche": "salon", "site": "none", "score": 8, "reason": "Books by Instagram DM only" }
+]

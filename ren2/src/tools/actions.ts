@@ -2,6 +2,7 @@
 import { Tool, ToolError } from './types.js';
 import { health, healthText } from '../health.js';
 import { today } from '../env.js';
+import { hqReport, parsePlan, defaultPlan, applyPlan, watchSignups, nextArea, openReview } from '../hq.js';
 
 /** Human-readable preview of an outreach batch for the Contact decision. */
 export function messagesPreview(m: unknown): string {
@@ -28,9 +29,9 @@ export const adapterTool: Tool = {
     if (ctx.agent && !ctx.core.agents.canCall(ctx.agent, a.id, args.method, spec.kind)) {
       throw new ToolError(`${ctx.agent.id} has no access to ${a.name}.${args.method} — add it under access: ${a.id}: in agents/${ctx.agent.id}.yaml`);
     }
-    const { adapter: _a, method: _m, optional: _o, result: _r, ...rest } = args;
+    const { adapter: _a, method: _m, optional: _o, result: _r, revision_note: _rn, ...rest } = args;
     if (spec.gate) {
-      const preview = rest.preview_url || (rest.messages ? messagesPreview(rest.messages) : JSON.stringify(rest, null, 1));
+      const preview = rest.preview_text || rest.preview_url || (rest.messages ? messagesPreview(rest.messages) : JSON.stringify(rest, null, 1));
       ctx.gate({ gate: spec.gate.gate, actionType: spec.gate.actionType, summary: `${ctx.agent?.name || 'Ren'} wants to ${spec.description} (${a.name}${a.mode === 'mock' ? ', MOCK' : ''})`, preview: String(preview).slice(0, 3000) });
     }
     const r = await a.call(args.method, rest, { key: ctx.key, taskId: ctx.task.id, agentId: ctx.task.agent_id, signal: ctx.signal });
@@ -76,7 +77,7 @@ export const publishTool: Tool = {
 
 export const systemTool: Tool = {
   name: 'system',
-  description: 'Ren 2 self-checks. args: { action: health|adapters|queue|agent_stats|digest }.',
+  description: 'Ren 2 internals. args: { action: health|adapters|queue|agent_stats|digest|hq_report|apply_plan|watch_signups|next_area|open_review }.',
   async status() {
     return { status: 'ok' };
   },
@@ -123,6 +124,44 @@ export const systemTool: Tool = {
       }
       case 'digest':
         return { output: core.digestText(today()) };
+      case 'hq_report': {
+        const r = await hqReport(core);
+        return { output: r.text, data: { unbuilt: r.unbuilt.length, reviews: r.reviews, decisions: r.decisions } };
+      }
+      case 'apply_plan': {
+        const text = String(args.text || '');
+        let plan: any = null;
+        let source = 'model';
+        if (text && !text.startsWith('(optional step failed')) {
+          try {
+            plan = parsePlan(text);
+          } catch {
+            plan = null;
+          }
+        }
+        if (!plan) {
+          plan = defaultPlan(core, await hqReport(core));
+          source = 'rules';
+        }
+        const row = applyPlan(core, plan, { kind: String(args.kind || 'daily'), source, taskId: ctx.task.id, keyPrefix: ctx.key });
+        core.workLoop();
+        return {
+          output: `${row.headline}\n\n${row.items.map((i, n) => `${n + 1}. ${i.agent}: ${i.ask}${i.priority === 'high' ? ' (high)' : ''}${i.when === 'idle' ? ' (when idle)' : ''}`).join('\n') || 'No new work delegated.'}${row.questions.length ? `\n\nQuestions for Kevin:\n${row.questions.map((q) => '- ' + q.q).join('\n')}` : ''}${row.notes ? `\n\n${row.notes}` : ''}`,
+          data: { planId: row.id, source },
+        };
+      }
+      case 'watch_signups': {
+        const out = await watchSignups(core, ctx.task.id);
+        core.workLoop();
+        return { output: out };
+      }
+      case 'next_area':
+        return { output: args.area ? String(args.area) : nextArea(core, true) };
+      case 'open_review': {
+        if (!args.site_id) throw new ToolError('open_review needs site_id');
+        const r = openReview(core, { site_id: String(args.site_id), title: String(args.title || args.site_id), niche: args.niche || null, candidate_id: args.candidate_id || null, preview_url: args.preview_url || null, ren_notes: String(args.notes || ''), task_id: ctx.task.id });
+        return { output: `Review #${r.id} is waiting for Kevin: ${r.title}\n${r.preview_url || ''}\n\n${r.ren_notes}`, data: { reviewId: r.id } };
+      }
       default:
         throw new ToolError(`unknown system action ${args.action}`);
     }

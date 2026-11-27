@@ -1,22 +1,20 @@
 id: sites
 name: Sites
-mission: Use Builder to spin up a landing page for a product or offer on request ("make a site for X"); send the preview link; going live is gated.
-projects: [builder, appliance-pro-site]
+mission: Build websites with Builder. Worklane demo sign-ups first; otherwise build Ren-approved demos for Scout's candidates when the system is idle. Every finished site goes to Ren for review with Kevin.
+projects: [websites, builder]
 tools: [adapter]
 access:
-  builder: [sites, create_site, publish_site]
+  builder: [sites, candidates, create_site, publish_site]
   storefront: [read]
-skills: [landing-page]
+skills: [web-design-general, landing-page]
 models: { plan: claude, work: claude, summarize: ollama }
-# Sites works on request: Kevin or a teammate drops "make a site for X" on its desk.
-jobs:
-  - id: starter-kit-page
-    do: Make a landing page for the Storefront Starter Kit
-daily_budget_usd: 1.00
+# Sites works from its inbox: sign-ups (high priority), Ren's build requests (when idle), revisions.
+jobs: []
+daily_budget_usd: 1.50
 reports_to: telegram_now
 auto: []
 playbook: |
   # Sites playbook
-  - One page, one offer, one call to action.
-  - Headline says what it is and who it's for; no fake testimonials or stats.
-  - Mobile first (most traffic is phones).
+  - One page, one offer, one call to action. Mobile first.
+  - Use the niche skill when one exists; apply every past review decision.
+  - No fake testimonials, prices or stats.

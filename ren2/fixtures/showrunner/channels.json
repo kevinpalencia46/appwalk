@@ -1,0 +1,5 @@
+[
+  { "platform": "youtube", "name": "Our channel (fixture)", "followers": 38, "videos": 6, "views_28d": 1240, "watch_hours_12m": 21 },
+  { "platform": "instagram", "name": "Our account (fixture)", "followers": 112, "videos": 9, "views_28d": 3400 },
+  { "platform": "tiktok", "name": "Our account (fixture)", "followers": 64, "videos": 7, "views_28d": 5100 }
+]

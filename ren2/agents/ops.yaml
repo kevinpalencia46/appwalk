@@ -1,7 +1,7 @@
 id: ops
 name: Ops
 mission: Watch Pi health, Ren 2 itself and adapter status; fix Ren 2's own problems (requeue its own jammed tasks); report recurring failures. Observe side projects, never restart them.
-projects: [ren2]
+projects: [ops, ren2]
 # Tools beyond the basics every agent has (think, memory, message, handoff, notify)
 tools: [system]
 # Project access — read-only status of every side project

@@ -1,0 +1,7 @@
+[
+  { "platform": "youtube", "title": "Fixture video A", "niche": "niche-1", "format": "short", "views": 640, "avg_view_pct": 71, "likes": 22, "follows": 6 },
+  { "platform": "youtube", "title": "Fixture video B", "niche": "niche-2", "format": "long", "views": 90, "avg_view_pct": 23, "likes": 3, "follows": 0 },
+  { "platform": "instagram", "title": "Fixture reel C", "niche": "niche-1", "format": "reel", "views": 2100, "avg_view_pct": 64, "likes": 88, "follows": 14 },
+  { "platform": "tiktok", "title": "Fixture clip D", "niche": "niche-1", "format": "clip", "views": 3900, "avg_view_pct": 58, "likes": 140, "follows": 21 },
+  { "platform": "tiktok", "title": "Fixture clip E", "niche": "niche-2", "format": "clip", "views": 410, "avg_view_pct": 19, "likes": 6, "follows": 0 }
+]

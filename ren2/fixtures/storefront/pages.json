@@ -1,5 +1,5 @@
-[
-  { "path": "/", "copy": "Welcome to our store. Quality products for everyday life. Browse the collection." },
-  { "path": "/products/starter-kit", "copy": "Starter Kit — $49. Everything you need to get started. Shipping calculated at checkout. No reviews yet." },
-  { "path": "/checkout", "copy": "Checkout requires an account. Shipping: $9.95. Payment: card only." }
-]
+{
+  "worklane": [ { "path": "/", "copy": "Worklane builds websites for local businesses. Fast, affordable, done for you." }, { "path": "/pricing", "copy": "Plans from $X/month (placeholder in fixture). Contact us for details." }, { "path": "/demo", "copy": "Get a free demo site. Name, business, email, phone." } ],
+  "book": [ { "path": "/", "copy": "The book — available now. Buy on our site." }, { "path": "/excerpt", "copy": "Read the first chapter free." } ],
+  "shop": [ { "path": "/", "copy": "Welcome to our store. Quality products for everyday life. Browse the collection." }, { "path": "/products/starter-kit", "copy": "Starter Kit — $49. Everything you need to get started. Shipping calculated at checkout. No reviews yet." }, { "path": "/checkout", "copy": "Checkout requires an account. Shipping: $9.95. Payment: card only." } ]
+}

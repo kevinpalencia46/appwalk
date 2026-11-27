@@ -10,6 +10,7 @@ import { bus, log, redact } from './log.js';
 import { health } from './health.js';
 import { KINDS } from './memory/memory.js';
 import { GATES } from './gate/gate.js';
+import { scoreboard, latestPlan, openReviews, resolveReview, answerQuestion } from './hq.js';
 
 type Req = http.IncomingMessage & { params: Record<string, string>; query: URLSearchParams; body: any };
 type Handler = (req: Req, core: Core) => Promise<any> | any;
@@ -27,6 +28,49 @@ const MIME: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js
 function routes(): [string, RegExp, Handler][] {
   const r: [string, string, Handler][] = [
     ['GET', '/api/status', (_q, c) => c.statusSummary()],
+
+    // ── Ren HQ (Home) ──
+    ['GET', '/api/hq', async (_q, c) => {
+      const plan = latestPlan(c);
+      const items = (plan?.items || []).map((it) => {
+        const m = it.message_id ? c.messages.get(it.message_id) : undefined;
+        return { ...it, status: m?.status ?? 'unknown', task_id: m?.task_id ?? null };
+      });
+      const ren = c.agents.get('ren') ? c.desk('ren') : null;
+      return {
+        plan: plan ? { ...plan, items } : null,
+        sectors: await scoreboard(c),
+        reviews: openReviews(c),
+        decisions: c.gate.open(),
+        ren: ren ? { status: ren.status, now: ren.now, jobs: ren.jobs, lastRunAt: ren.lastRunAt, waiting: ren.counts.waiting } : null,
+        team: c.agents.list().filter((a) => a.id !== 'ren').map((a) => {
+          const d = c.desk(a.id);
+          return { id: a.id, name: a.name, status: d.status, working: Boolean(d.now), now: d.now?.objective?.split('\n')[0] ?? null, waiting: d.counts.waiting, needsYou: d.waitingOnKevin.length };
+        }),
+        board: c.messages.board(8),
+        adapterMode: c.settings.adapterMode,
+      };
+    }],
+    ['POST', '/api/hq/plan', (q, c) => {
+      const ren = c.agents.get('ren');
+      if (!ren) throw notFound('no ren agent');
+      const job = ren.jobs.find((j) => j.id === (q.body?.weekly ? 'weekly-strategy' : 'morning-plan'));
+      if (!job) throw notFound('no plan job in agents/ren.yaml');
+      const t = c.agents.runJob(ren, job, 'dashboard');
+      c.runner.tick();
+      return t;
+    }],
+    ['POST', '/api/hq/questions/:plan/:idx', (q, c) => {
+      const answer = String(q.body?.answer || '').trim();
+      if (!answer) throw bad('answer required');
+      return answerQuestion(c, Number(q.params.plan), Number(q.params.idx), answer);
+    }],
+    ['GET', '/api/reviews', (q, c) => (q.query.get('status') === 'all' ? c.db.prepare('SELECT * FROM reviews ORDER BY id DESC LIMIT 100').all() : openReviews(c))],
+    ['POST', '/api/reviews/:id', (q, c) => {
+      const v = q.body?.verdict;
+      if (!['approve', 'changes'].includes(v)) throw bad('verdict must be approve or changes');
+      return resolveReview(c, Number(q.params.id), { verdict: v, good: q.body.good, change: q.body.change, add: q.body.add });
+    }],
     ['GET', '/api/chat', (_q, c) => c.chatHistory()],
     ['POST', '/api/chat', (q, c) => {
       const text = String(q.body?.text || '').trim();

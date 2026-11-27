@@ -49,14 +49,14 @@ test('telegram: chat-locked; free text → planner → answer; commands', async 
 
   await core.telegram.onCommand('/status');
   assert.ok(sent(api.calls).some((s) => s.startsWith('Ren 2')));
-  await core.telegram.onCommand('/pause research');
-  assert.equal(core.agents.status('research'), 'paused');
-  await core.telegram.onCommand('/resume research');
-  assert.equal(core.agents.status('research'), 'running');
+  await core.telegram.onCommand('/pause analyst');
+  assert.equal(core.agents.status('analyst'), 'paused');
+  await core.telegram.onCommand('/resume analyst');
+  assert.equal(core.agents.status('analyst'), 'running');
   await core.telegram.onCommand('/budget 7');
   assert.equal(core.budget.cap(), 7);
   await core.telegram.onCommand('/agents');
-  assert.ok(sent(api.calls).some((s) => s.includes('Research (research)')));
+  assert.ok(sent(api.calls).some((s) => s.includes('Storefront Analyst (analyst)')));
   await core.telegram.onCommand('/new check the builder');
   assert.ok(core.tasks.list().some((x) => x.objective === 'check the builder'));
   await core.telegram.onCommand('/stop');
@@ -75,7 +75,7 @@ test('telegram: decision buttons — approve, edit by reply, always allow; secre
     { tool: 'publish', args: { action: 'draft', platform: 'drafts', text: 'Post v1' } },
     { tool: 'publish', args: { action: 'publish', platform: 'drafts', draft_id: '{{data.0.id}}', text: 'Post v1' } },
   ];
-  const t = core.tasks.create({ objective: 'post', agentId: 'content', kind: 'agent', plan });
+  const t = core.tasks.create({ objective: 'post', agentId: 'media', kind: 'agent', plan });
   await runToEnd(core, t.id);
   const d = core.gate.open()[0];
   await core.telegram.sendDecision(d);
@@ -94,7 +94,7 @@ test('telegram: decision buttons — approve, edit by reply, always allow; secre
   // Always allow
   await core.telegram.handle({ update_id: 2, callback_query: { id: 'q2', data: `d:${d2.id}:al`, message: { message_id: 6, chat: { id: 42 } } } });
   assert.equal(core.gate.get(d2.id)!.status, 'approved');
-  assert.deepEqual(core.agents.get('content')!.auto, ['post:drafts']);
+  assert.deepEqual(core.agents.get('media')!.auto, ['post:drafts']);
   await runToEnd(core, t.id, ['done']);
 
   // Buttons from another chat are ignored

@@ -97,13 +97,13 @@ test('every endpoint responds and does its job', async () => {
 
   // Agents
   const agents = await ok('GET', '/api/agents');
-  assert.equal(agents.length, 5);
-  await ok('POST', '/api/agents/research/pause');
-  assert.equal(core.agents.status('research'), 'paused');
-  await ok('POST', '/api/agents/research/start');
-  await ok('POST', '/api/agents/research/stop');
-  assert.equal(core.agents.status('research'), 'stopped');
-  await ok('POST', '/api/agents/research/start');
+  assert.equal(agents.length, 7);
+  await ok('POST', '/api/agents/analyst/pause');
+  assert.equal(core.agents.status('analyst'), 'paused');
+  await ok('POST', '/api/agents/analyst/start');
+  await ok('POST', '/api/agents/analyst/stop');
+  assert.equal(core.agents.status('analyst'), 'stopped');
+  await ok('POST', '/api/agents/analyst/start');
   const run = await ok('POST', '/api/agents/ops/run');
   assert.equal((await runToEnd(core, run.id)).state, 'done');
   const cfg = await ok('GET', '/api/agents/ops/config');
@@ -111,14 +111,14 @@ test('every endpoint responds and does its job', async () => {
   await ok('PUT', '/api/agents/ops/config', { yaml: cfg.yaml.replace('daily_budget_usd: 0.10', 'daily_budget_usd: 0.20') });
   assert.equal(core.agents.get('ops')!.daily_budget_usd, 0.2);
   assert.equal((await call('PUT', '/api/agents/ops/config', { yaml: 'id: ops\n' })).status, 400);
-  const created = await ok('POST', '/api/agents', { id: 'scout', name: 'Scout', mission: 'Look around', projects: ['storefront'], schedule: '0 9 * * *' });
-  assert.equal(created.id, 'scout');
-  core.agents.applyPlaybook('scout', '- v2', 'test');
-  assert.equal((await ok('GET', '/api/agents/scout/playbook')).length, 2);
-  await ok('POST', '/api/agents/scout/playbook/revert', { version: 1 });
-  assert.notEqual(core.agents.playbook('scout'), '- v2');
-  core.agents.addAuto('scout', 'post:x');
-  assert.deepEqual(await ok('DELETE', '/api/auto/scout/post%3Ax'), []);
+  const created = await ok('POST', '/api/agents', { id: 'watcher', name: 'Watcher', mission: 'Look around', projects: ['storefront'], schedule: '0 9 * * *' });
+  assert.equal(created.id, 'watcher');
+  core.agents.applyPlaybook('watcher', '- v2', 'test');
+  assert.equal((await ok('GET', '/api/agents/watcher/playbook')).length, 2);
+  await ok('POST', '/api/agents/watcher/playbook/revert', { version: 1 });
+  assert.notEqual(core.agents.playbook('watcher'), '- v2');
+  core.agents.addAuto('watcher', 'post:x');
+  assert.deepEqual(await ok('DELETE', '/api/auto/watcher/post%3Ax'), []);
   assert.equal((await call('POST', '/api/agents/nobody/start')).status, 404);
 
   // Projects

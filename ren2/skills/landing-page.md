@@ -1,6 +1,6 @@
 ---
 name: Landing page
-projects: [builder, appliance-pro-site, storefront]
+projects: [builder, websites]
 description: One-offer landing pages built through Builder.
 ---
 - Headline: what it is + who it's for. Subhead: the main outcome.

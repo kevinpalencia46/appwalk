@@ -1,6 +1,6 @@
 ---
 name: Storefront funnel diagnosis
-projects: [storefront]
+projects: [storefronts, storefront]
 description: Find where shoppers drop out between visit and order, and the smallest fix.
 ---
 1. Lay out the funnel: visits → product views → add to cart → checkout starts → orders.

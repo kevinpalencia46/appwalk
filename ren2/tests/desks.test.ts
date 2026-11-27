@@ -13,8 +13,8 @@ import { ROOT } from '../src/env.js';
 test('Kevin assigns work → agent picks it up by itself → reply lands back with the result', async () => {
   const { core, providers } = makeCore();
   (providers.anthropic as any).reply = (i: any) => (i.prompt.includes('JSON array') ? '[{"tool":"think","args":{"kind":"chat","prompt":"Answer: {{objective}}"}}]' : 'Competitors show shipping upfront.');
-  const m = core.assign('research', 'Check how competitors show shipping', 'Two or three examples');
-  const t = core.tasks.list().find((x) => x.agent_id === 'research')!;
+  const m = core.assign('analyst', 'Compare competitors shipping display', 'Two or three examples');
+  const t = core.tasks.list().find((x) => x.agent_id === 'analyst')!;
   assert.ok(t, 'work loop created a task immediately');
   assert.equal(core.messages.get(m.id)!.status, 'in_progress');
   const done = await runToEnd(core, t.id);
@@ -26,51 +26,38 @@ test('Kevin assigns work → agent picks it up by itself → reply lands back wi
   await core.stop();
 });
 
-test('one thing at a time per desk; next request starts when the desk frees up', async () => {
+test('a request naming a job runs that job', () => {
   const { core } = makeCore();
-  core.messages.send({ from: 'kevin', to: 'research', kind: 'request', subject: 'first' });
-  core.messages.send({ from: 'kevin', to: 'research', kind: 'request', subject: 'second' });
-  core.workLoop();
-  assert.equal(core.tasks.list().filter((t) => t.agent_id === 'research').length, 1, 'only one in flight');
-  core.agents.setStatus('research', 'paused');
-  assert.equal(core.workLoop().length, 0);
-  await core.stop();
+  core.messages.send({ from: 'ren', to: 'media', kind: 'request', subject: 'Run analytics-review this morning' });
+  const [t] = core.workLoop();
+  assert.equal(t.job_id, 'analytics-review');
 });
 
-test('agents ask each other: research → content request, content replies to research', async () => {
-  const { core, providers } = makeCore();
-  (providers.anthropic as any).reply = (i: any) => (i.prompt.includes('Why is the store') ? '## Findings\n- shipping hidden\n## Proposed changes\n1. show shipping\n## For Content\nshipping upfront' : 'Shipping is now shown upfront.');
-  const r = core.tasks.create({ objective: core.agents.get('research')!.jobs[0].do, agentId: 'research', kind: 'agent', project: 'storefront', source: 'schedule' });
-  assert.equal((await runToEnd(core, r.id)).state, 'done');
+test('one thing at a time per desk; next request starts when the desk frees up', async () => {
+  const { core } = makeCore();
+  core.messages.send({ from: 'kevin', to: 'analyst', kind: 'request', subject: 'first' });
+  core.messages.send({ from: 'kevin', to: 'analyst', kind: 'request', subject: 'second' });
   core.workLoop();
-  const c = core.tasks.list().find((x) => x.agent_id === 'content')!;
-  assert.equal(c.parent_id, r.id);
-  assert.match(c.objective, /Draft posts from research/);
-  // Content's prompt saw Research's team note
-  const parked = await runToEnd(core, c.id);
-  assert.equal(parked.state, 'needs_decision');
-  const writePrompt = (providers.anthropic as any).calls.map((x: any) => x.prompt).find((p: string) => p.includes('Write ONE social post'));
-  assert.match(writePrompt, /From research \(team\)/, 'team board context reached Content');
-  assert.match(writePrompt, /Skill: Social post/, 'skills reached the prompt');
-  core.decide(core.gate.open()[0].id, 'approve');
-  await runToEnd(core, c.id, ['done']);
-  const reply = core.messages.inbox('research').find((m) => m.kind === 'reply' && m.from_agent === 'content');
-  assert.ok(reply, 'content replied to research');
+  assert.equal(core.tasks.list().filter((t) => t.agent_id === 'analyst').length, 1, 'only one in flight');
+  core.agents.setStatus('analyst', 'paused');
+  assert.equal(core.workLoop().length, 0);
   await core.stop();
 });
 
 test('project access is enforced per agent and method', async () => {
   const { core } = makeCore();
-  const t = core.tasks.create({ objective: 'sneaky', agentId: 'research', kind: 'agent', plan: [{ tool: 'adapter', args: { adapter: 'bge', method: 'send_drafts', draft_ids: [] } }] });
+  const t = core.tasks.create({ objective: 'sneaky', agentId: 'analyst', kind: 'agent', plan: [{ tool: 'adapter', args: { adapter: 'bge', method: 'send_drafts', draft_ids: [] } }] });
   const f = await runToEnd(core, t.id);
   assert.equal(f.state, 'failed');
   assert.match(f.error!, /no access to Growth Engine\.send_drafts/);
-  const ok = core.tasks.create({ objective: 'read', agentId: 'research', kind: 'agent', plan: [{ tool: 'adapter', args: { adapter: 'storefront', method: 'summary' } }] });
+  const ok = core.tasks.create({ objective: 'read', agentId: 'analyst', kind: 'agent', plan: [{ tool: 'adapter', args: { adapter: 'storefront', method: 'summary' } }] });
   assert.equal((await runToEnd(core, ok.id)).state, 'done', '"read" grants read methods');
-  const t2 = core.tasks.create({ objective: 'shell', agentId: 'content', kind: 'agent', plan: [{ tool: 'shell', args: { cmd: 'echo hi' } }] });
+  const t2 = core.tasks.create({ objective: 'shell', agentId: 'media', kind: 'agent', plan: [{ tool: 'shell', args: { cmd: 'echo hi' } }] });
   assert.match((await runToEnd(core, t2.id)).error!, /no access to the shell tool/);
   assert.equal(core.agents.canCall(core.agents.get('ops')!, 'trading', 'paper_results', 'read'), true);
   assert.equal(core.agents.canCall(core.agents.get('sites')!, 'bge', 'leads', 'read'), false);
+  assert.equal(core.agents.canCall(core.agents.get('scout')!, 'builder', 'sweep', 'action'), true);
+  assert.equal(core.agents.canCall(core.agents.get('scout')!, 'builder', 'create_site', 'action'), false);
   await core.stop();
 });
 
@@ -98,8 +85,8 @@ test('desk + jobs endpoints', async () => {
     return r.json() as Promise<any>;
   };
   const all = await j('GET', '/api/desks');
-  assert.equal(all.desks.length, 5);
-  assert.ok(all.desks.find((d: any) => d.id === 'research').jobs[0].nextRun);
+  assert.equal(all.desks.length, 7);
+  assert.ok(all.desks.find((d: any) => d.id === 'analyst').jobs[0].nextRun);
   const job = await j('POST', '/api/agents/ops/jobs/health-check/run');
   assert.equal(job.job_id, 'health-check');
   await runToEnd(core, job.id);
@@ -134,6 +121,43 @@ test('skill PUT writes the file (temp skills dir)', async () => {
   const r = await fetch(base + '/api/skills/landing-page', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ body: '- Always show price.' }) });
   assert.equal(r.status, 200);
   assert.match(fs.readFileSync(path.join(dir, 'landing-page.md'), 'utf8'), /Always show price/);
+  srv.close();
+  await core.stop();
+});
+
+test('HQ endpoints: scoreboard, plan now, answer Ren, review verdict', async () => {
+  const { core, providers } = makeCore();
+  (providers.anthropic as any).reply = () => JSON.stringify({ headline: 'Focus on websites', items: [{ sector: 'websites', agent: 'scout', ask: 'Sweep Vernon' }], questions: ['Which niches for Media?'] });
+  const srv = createServer(core);
+  await new Promise<void>((r) => srv.listen(0, '127.0.0.1', () => r()));
+  const base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+  const j = async (m: string, p: string, body?: any, status = 200) => {
+    const r = await fetch(base + p, { method: m, headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    assert.equal(r.status, status, `${m} ${p}`);
+    return r.json() as Promise<any>;
+  };
+  const hq0 = await j('GET', '/api/hq');
+  assert.deepEqual(hq0.sectors.map((s: any) => s.id), ['media', 'websites', 'storefronts', 'ops']);
+  const follow = hq0.sectors[0].goals.find((g: any) => g.metric === 'followers_total');
+  assert.equal(follow.mock, true, 'adapter numbers are labelled MOCK');
+  assert.equal(hq0.sectors[1].goals.find((g: any) => g.id === 'sweeps').mock, false, "Ren 2's own counts are real");
+  assert.equal(hq0.team.length, 6);
+  const t = await j('POST', '/api/hq/plan');
+  await runToEnd(core, t.id);
+  const hq1 = await j('GET', '/api/hq');
+  assert.equal(hq1.plan.headline, 'Focus on websites');
+  assert.equal(hq1.plan.items[0].agent, 'scout');
+  await j('POST', `/api/hq/questions/${hq1.plan.id}/0`, { answer: 'Tech tips and local business stories' });
+  assert.ok(core.memory.search('niches', { project: 'ren', kind: 'preference' }).length >= 1, 'answer remembered');
+  await j('POST', `/api/hq/questions/${hq1.plan.id}/0`, {}, 400);
+  const { openReview } = await import('../src/hq.js');
+  const r = openReview(core, { site_id: 's-1', title: 'Demo', ren_notes: 'ok' });
+  assert.equal((await j('GET', '/api/reviews')).length, 1);
+  await j('POST', `/api/reviews/${r.id}`, { verdict: 'changes' }, 400);
+  const out = await j('POST', `/api/reviews/${r.id}`, { verdict: 'changes', change: 'bigger phone number' });
+  assert.equal(out.status, 'changes_requested');
+  assert.ok((await j('GET', '/api/hq')).reviews.every((x: any) => x.id !== r.id), 'resolved review leaves Needs you');
+  await j('POST', `/api/reviews/${r.id}`, { verdict: 'approve' }, 400);
   srv.close();
   await core.stop();
 });

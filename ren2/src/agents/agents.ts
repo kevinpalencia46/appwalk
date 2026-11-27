@@ -298,13 +298,20 @@ export class Agents {
     return allowed.includes('*') || allowed.includes(method) || (kind === 'read' && allowed.includes('read'));
   }
 
-  /** Built-in deterministic plans. Null = let the model plan it. */
+  /** Today's spending cap for an agent (Ren may move budget between agents within the daily cap). */
+  capFor(id: string): number {
+    const o = (this.db.prepare('SELECT value FROM kv WHERE key = ?').get(`agentcap.${today()}.${id}`) as { value: string } | undefined)?.value;
+    return o !== undefined ? Number(o) : this.defs.get(id)?.daily_budget_usd ?? 0;
+  }
+  setCapToday(id: string, usd: number): void {
+    this.db.prepare('INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(`agentcap.${today()}.${id}`, String(usd));
+    emit('agent', { id, cap: usd });
+  }
+
+  /** Retro plans live here; each desk's job plans live in plans.ts. */
   planFor(a: AgentDef, task: TaskRow): StepPlan[] | null {
     if (task.kind === 'retro') return retroPlan(a);
-    if ((task as any).message_id && a.id !== 'content' && a.id !== 'sites' && a.id !== 'outreach') return null; // ad-hoc requests: plan from the ask
-    const builtin = BUILTIN[a.id];
-    if (!builtin) return null;
-    return builtin(a, task);
+    return null;
   }
 }
 
@@ -331,95 +338,3 @@ export function retroPlan(a: AgentDef): StepPlan[] {
     { tool: 'system', args: { action: 'apply_playbook', agent: a.id, text: '{{step.1}}', result: true }, note: 'Auto-apply (versioned, revertible)' },
   ];
 }
-
-const BUILTIN: Record<string, (a: AgentDef, t: TaskRow) => StepPlan[] | null> = {
-  ops: () => [
-    { tool: 'system', args: { action: 'health' }, note: 'Pi health' },
-    { tool: 'system', args: { action: 'adapters' }, note: 'Adapter status' },
-    { tool: 'system', args: { action: 'queue' }, note: 'Clear Ren 2 queue jams' },
-    { tool: 'system', args: { action: 'ops_report', health: '{{step.0}}', adapters: '{{step.1}}', queue: '{{step.2}}', result: true }, note: 'Report' },
-  ],
-
-  research: (a, t) => {
-    if (t.source !== 'schedule' && !/daily|scan|storefront|orders|convert/i.test(t.objective)) return null;
-    const project = t.project || a.projects[0] || 'storefront';
-    const steps: StepPlan[] = [
-      { tool: 'adapter', args: { adapter: 'storefront', method: 'summary' }, note: 'Storefront numbers' },
-      { tool: 'adapter', args: { adapter: 'storefront', method: 'pages', optional: true }, note: 'Offer + page copy' },
-      { tool: 'memory', args: { action: 'search', query: `${project} conversion orders pricing findings`, project, limit: 6 }, note: 'What we already know' },
-    ];
-    for (const url of (a.sources || []).slice(0, 3)) steps.push({ tool: 'http', args: { url, optional: true }, note: `Scan ${new URL(url).hostname}` });
-    const n = steps.length;
-    const srcRefs = steps.slice(3).map((_, i) => `{{step.${3 + i}}}`).join('\n\n');
-    steps.push(
-      {
-        tool: 'think',
-        args: {
-          kind: 'research',
-          prompt: `${t.objective}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nTeam notes:\n{{inbox}}\n\nStorefront summary:\n{{step.0}}\n\nPages/offer:\n{{step.1}}\n\nPrior findings:\n{{step.2}}\n\n${srcRefs ? `Competitor/market pages:\n${srcRefs}\n\n` : ''}Numbers labelled MOCK are fixtures, not real — say so if you rely on them.\nWhy is the store getting visits but no orders? Write:\n## Findings (3–5 bullets, each tied to evidence above)\n## Proposed changes (numbered, concrete, smallest first: what to change, where, expected effect)\n## For Content (one line: the angle Content should post about)`,
-          result: true,
-        },
-        note: 'Analyse',
-      },
-      { tool: 'memory', args: { action: 'add', kind: 'lesson', project, title: `Research ${today()}: ${project} scan`, body: `{{step.${n}}}` }, note: 'Save findings' },
-      { tool: 'message', args: { to: 'content', kind: 'request', project, subject: `Draft posts from research ${today()} (${project})`, body: `{{step.${n}}}` }, note: 'Ask Content for posts' },
-      { tool: 'message', args: { to: '*', kind: 'fyi', project, subject: `Research ${today()}: ${project} findings`, body: `{{step.${n}}}` }, note: 'Share with the team' },
-    );
-    return steps;
-  },
-
-  content: (a, t) => {
-    const project = t.project || a.projects[0] || 'storefront';
-    const platform = a.platform || 'drafts';
-    return [
-      { tool: 'memory', args: { action: 'search', query: `research findings ${project}`, project, limit: 5 }, note: 'Latest research' },
-      {
-        tool: 'think',
-        args: {
-          kind: 'write',
-          prompt: `Task: ${t.objective}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nTeam notes:\n{{inbox}}\n\nResearch:\n{{step.0}}\n\nWrite ONE social post for ${project} (under 260 characters, plain text, no hashtags spam, no invented numbers or claims). Return only the post text.`,
-        },
-        note: 'Draft post',
-      },
-      { tool: 'publish', args: { action: 'draft', platform, project, text: '{{step.1}}' }, note: 'Save draft' },
-      {
-        tool: 'think',
-        args: { kind: 'write', optional: true, prompt: `Turn this post into a 30-second vertical video script (hook, 3 beats, call to action). Plain text.\n\nPost:\n{{step.1}}` },
-        note: 'Video script',
-      },
-      { tool: 'adapter', args: { adapter: 'showrunner', method: 'queue_job', optional: true, script: '{{step.3}}', title: t.objective.slice(0, 80) }, note: 'Queue Showrunner job' },
-      { tool: 'publish', args: { action: 'publish', platform, draft_id: '{{data.2.id}}', text: '{{step.1}}', result: true }, note: 'Publish (gated)' },
-    ];
-  },
-
-  sites: (a, t) => [
-    { tool: 'memory', args: { action: 'search', query: t.objective, limit: 5 }, note: 'What we know about it' },
-    {
-      tool: 'think',
-      args: {
-        kind: 'write',
-        prompt: `Request: ${t.objective}\n\nContext:\n{{step.0}}\n\nTeam notes:\n{{inbox}}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nWrite a landing page spec as JSON only: {"name": short-slug, "title": ..., "headline": ..., "subhead": ..., "sections": [{"heading": ..., "body": ...}] (3 sections), "cta": {"label": ..., "href": "#contact"}}. No invented testimonials, prices or stats.`,
-      },
-      note: 'Page spec',
-    },
-    { tool: 'adapter', args: { adapter: 'builder', method: 'create_site', spec: '{{step.1}}' }, note: 'Build preview' },
-    { tool: 'notify', args: { text: `Preview ready for: ${t.objective.split('\n')[0].slice(0, 80)}`, link: '{{data.2.preview_url}}' }, note: 'Send preview link' },
-    { tool: 'message', args: { to: '*', kind: 'fyi', subject: `Preview page: ${t.objective.split('\n')[0].slice(0, 80)}`, body: '{{data.2.preview_url}}' }, note: 'Tell the team' },
-    { tool: 'adapter', args: { adapter: 'builder', method: 'publish_site', site_id: '{{data.2.id}}', preview_url: '{{data.2.preview_url}}', result: true }, note: 'Go live (gated)' },
-  ],
-
-  outreach: (a, t) => [
-    { tool: 'adapter', args: { adapter: 'bge', method: 'prospects', segment: 'trades', limit: 5 }, note: 'Find prospects' },
-    { tool: 'memory', args: { action: 'search', query: 'automation pro offer trades outreach', limit: 5 }, note: 'Offer + past lessons' },
-    {
-      tool: 'think',
-      args: {
-        kind: 'write',
-        prompt: `Task: ${t.objective}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nTeam notes:\n{{inbox}}\n\nOffer/context:\n{{step.1}}\n\nProspects:\n{{step.0}}\n\nDraft one short, personal, plain-text email per prospect (≤ 90 words, one concrete reason it fits them, one soft ask, no fake claims). Return JSON only: [{"prospect_id": ..., "subject": ..., "body": ...}].`,
-      },
-      note: 'Draft messages',
-    },
-    { tool: 'adapter', args: { adapter: 'bge', method: 'create_drafts', messages: '{{step.2}}' }, note: 'Save drafts in BGE' },
-    { tool: 'adapter', args: { adapter: 'bge', method: 'send_drafts', draft_ids: '{{data.3.ids}}', messages: '{{step.2}}', result: true }, note: 'Send (gated)' },
-  ],
-};

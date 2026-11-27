@@ -123,7 +123,7 @@ function connectSSE() {
   };
   es.addEventListener('model.start', (e) => onModel(e, true));
   es.addEventListener('model', (e) => onModel(e, false));
-  for (const t of ['task', 'step', 'decision.new', 'decision.resolved', 'chat', 'halted', 'budget', 'alert', 'agent', 'memory', 'playbook', 'auto', 'draft', 'failure.recurring', 'message']) es.addEventListener(t, soon);
+  for (const t of ['task', 'step', 'decision.new', 'decision.resolved', 'chat', 'halted', 'budget', 'alert', 'agent', 'memory', 'playbook', 'auto', 'draft', 'failure.recurring', 'message', 'plan', 'review']) es.addEventListener(t, soon);
 }
 
 // ── Home ──
@@ -173,45 +173,10 @@ function taskLine(t) {
   </div>`;
 }
 
+let homePage = null;
 async function home() {
-  const [chat, decisions, tasks, alerts, budget] = await Promise.all([api('/api/chat'), api('/api/decisions?status=open'), api('/api/tasks?limit=40'), api('/api/alerts'), api('/api/budget')]);
-  const current = tasks.filter((t) => ['queued', 'planning', 'running', 'verifying', 'needs_decision'].includes(t.state));
-  const recent = tasks.filter((t) => ['done', 'failed'].includes(t.state)).slice(0, 8);
-  const pct = Math.min(100, budget.pct);
-  view.innerHTML = `<div class="cols">
-    <div class="grid" style="grid-template-columns:1fr">
-      <div class="card">
-        <div class="orbwrap"><div id="orb" class="orb"></div></div>
-        <div id="orbtext" class="orbtext"></div>
-      </div>
-      <div class="card"><h2>Talk to Ren</h2>
-        <div class="chatlog" id="chatlog">${chat.map((m) => `<div class="msg ${m.role === 'kevin' ? 'kevin' : 'ren'}">${esc(m.text)}${m.task_id && m.role !== 'kevin' ? ` <a href="#work/${m.task_id}">#${m.task_id}</a>` : ''}</div>`).join('') || '<div class="empty">Ask anything — "summarize what\'s in memory about Storefront".</div>'}</div>
-        <form class="chatform" id="chatform"><input id="chatin" placeholder="Message Ren…" autocomplete="off"><button class="primary">Send</button></form>
-      </div>
-      <div class="card"><h2>Current work <a href="#work">all</a></h2><div class="list">${current.map(taskLine).join('') || '<div class="empty">Nothing running.</div>'}</div></div>
-    </div>
-    <div class="grid" style="grid-template-columns:1fr">
-      <div class="card"><h2>Decisions <span>${decisions.length}</span></h2><div class="list" id="decs">${decisions.map(decisionHtml).join('') || '<div class="empty">Nothing waiting on you.</div>'}</div></div>
-      <div class="card"><h2>Today's spend</h2>
-        <div class="spread"><span class="big">${usd(budget.spent)}</span><span class="muted">of ${usd(budget.cap)}</span></div>
-        <div class="meter ${pct >= 100 ? 'over' : pct >= 80 ? 'hot' : ''}"><i style="width:${pct}%"></i></div>
-      </div>
-      <div class="card"><h2>Alerts</h2><div class="list">${alerts.map((a) => `<div class="item spread"><span>${tag(a.level === 'error' ? 'failed' : a.level === 'warn' ? 'pending' : 'ok')} ${esc(a.message)} <span class="muted">${ago(a.created_at)}</span></span><button class="ghost" data-alert="${a.id}">Dismiss</button></div>`).join('') || '<div class="empty">No alerts.</div>'}</div></div>
-      <div class="card"><h2>Recent results</h2><div class="list">${recent.map((t) => `<div class="item click" onclick="location.hash='work/${t.id}'"><div class="spread"><b>#${t.id} ${esc(t.objective.slice(0, 70))}</b>${tag(t.state)}</div><div class="muted">${esc((t.result || t.error || '').split('\n').find((l) => l.trim())?.slice(0, 160) || '')}</div></div>`).join('') || '<div class="empty">No results yet.</div>'}</div></div>
-    </div>
-  </div>`;
-  paintOrb();
-  const log = $('#chatlog');
-  log.scrollTop = log.scrollHeight;
-  $('#chatform').onsubmit = (e) => {
-    e.preventDefault();
-    const text = $('#chatin').value.trim();
-    if (!text) return;
-    $('#chatin').value = '';
-    act(() => post('/api/chat', { text }));
-  };
-  wireDecisions($('#decs'));
-  view.querySelectorAll('[data-alert]').forEach((b) => (b.onclick = () => act(() => post(`/api/alerts/${b.dataset.alert}/dismiss`))));
+  homePage ??= (await import('/hq.js')).makeHome({ $, view, esc, ago, usd, tag, api, post, act, decisionHtml, wireDecisions, paintOrb });
+  return homePage();
 }
 
 // ── Work ──

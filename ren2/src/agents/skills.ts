@@ -62,6 +62,20 @@ export class Skills {
     }
     return out.join('\n\n');
   }
+  /** Create or replace a skill file. */
+  write(s: { id: string; name?: string; description?: string; projects?: string[]; body: string }): Skill {
+    const id = s.id.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+    if (!id) throw new Error('bad skill id');
+    const cur = this.map.get(id);
+    const name = (s.name || cur?.name || id).replace(/\n/g, ' ');
+    const description = (s.description || cur?.description || '').replace(/\n/g, ' ');
+    const projects = s.projects?.length ? s.projects : cur?.projects || [];
+    fs.mkdirSync(this.dir, { recursive: true });
+    fs.writeFileSync(path.join(this.dir, `${id}.md`), `---\nname: ${name}\nprojects: [${projects.join(', ')}]\ndescription: ${description}\n---\n${s.body.trim()}\n`);
+    this.load();
+    return this.map.get(id)!;
+  }
+
   save(id: string, body: string): Skill {
     const s = this.map.get(id);
     if (!s) throw new Error(`no skill ${id}`);

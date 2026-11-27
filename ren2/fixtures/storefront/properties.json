@@ -1,0 +1,7 @@
+[
+  { "id": "worklane", "name": "Worklane", "kind": "services — we build websites for businesses", "status": "live", "url": null },
+  { "id": "book", "name": "Book site", "kind": "book sales (Worklane subdomain)", "status": "live", "url": null },
+  { "id": "shop", "name": "Shop", "kind": "online store (Starter Kit)", "status": "live", "url": null },
+  { "id": "amazon", "name": "Amazon resale", "kind": "resale", "status": "planned", "url": null },
+  { "id": "dropship", "name": "Dropshipping", "kind": "dropshipping (clothes / toys later)", "status": "planned", "url": null }
+]

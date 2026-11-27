@@ -11,6 +11,7 @@ import { Tasks, TaskRow } from './tasks/store.js';
 import { Runner } from './tasks/runner.js';
 import { detectProject } from './tasks/planner.js';
 import path from 'node:path';
+import os from 'node:os';
 import { Agents } from './agents/agents.js';
 import { Messages, Message } from './agents/messages.js';
 import { Skills } from './agents/skills.js';
@@ -21,6 +22,7 @@ import { Adapter } from './adapters/base.js';
 import { publishers, Publisher, Drafts } from './adapters/publisher.js';
 import { Telegram } from './telegram/telegram.js';
 import { bus, emit, log } from './log.js';
+import { Sector, loadSectors } from './hq.js';
 
 export interface CoreOptions {
   providers?: Record<string, Provider>;
@@ -37,6 +39,7 @@ export class Core {
   agents: Agents;
   messages: Messages;
   skills: Skills;
+  private _sectors: { at: number; v: Sector[] } | null = null;
   tools: Tools;
   adapters: Adapters;
   publishers: Record<string, Publisher>;
@@ -106,7 +109,8 @@ export class Core {
     const created: TaskRow[] = [];
     for (const a of this.agents.list()) {
       if (this.agents.status(a.id) !== 'running' || this.agents.busy(a.id)) continue;
-      const m = this.messages.pendingRequests(a.id)[0];
+      // Idle-only work (e.g. speculative demo builds) waits until the machine is quiet.
+      const m = this.messages.pendingRequests(a.id).find((x) => !x.idle_only || this.systemIdle());
       if (!m) continue;
       const t = this.tasks.create({
         objective: m.body ? `${m.subject}\n\n${m.body}` : m.subject,
@@ -117,12 +121,25 @@ export class Core {
         kind: 'agent',
         key: `msg:${m.id}`,
       });
-      this.db.prepare('UPDATE tasks SET message_id = ? WHERE id = ?').run(m.id, t.id);
+      // A request that names one of this agent's jobs runs that job's plan.
+      const job = a.jobs.find((j) => new RegExp(`\\b${j.id}\\b`, 'i').test(m.subject));
+      this.db.prepare('UPDATE tasks SET message_id = ?, job_id = ? WHERE id = ?').run(m.id, job?.id ?? null, t.id);
       this.messages.set(m.id, { status: 'in_progress', task_id: t.id });
       created.push(this.tasks.get(t.id)!);
     }
     if (created.length) this.runner.tick();
     return created;
+  }
+
+  /** Sectors config (re-read at most every 10 s so edits apply without a restart). */
+  get sectors(): Sector[] {
+    if (!this._sectors || Date.now() - this._sectors.at > 10_000) this._sectors = { at: Date.now(), v: loadSectors(this.settings.configDir) };
+    return this._sectors.v;
+  }
+
+  /** Quiet enough for background work: nothing else running and load under half the cores. */
+  systemIdle(): boolean {
+    return this.runner.active.size === 0 && os.loadavg()[0] < os.cpus().length * 0.5;
   }
 
   /** Kevin drops work on an agent's desk. */
@@ -188,7 +205,9 @@ export class Core {
 
   /** Dashboard or Telegram message → task for the planner. */
   chat(source: 'telegram' | 'dashboard', text: string, chatId?: string, explicitTask = false): TaskRow {
-    const task = this.tasks.create({ objective: text.slice(0, 2000), kind: explicitTask ? 'request' : 'chat', project: detectProject(text), source, chatId: chatId ?? null });
+    // Kevin talks to Ren: Ren answers or delegates to the desks.
+    const ren = this.agents.get('ren') && this.agents.status('ren') === 'running' ? 'ren' : null;
+    const task = this.tasks.create({ objective: text.slice(0, 2000), kind: explicitTask ? 'request' : 'chat', agentId: ren, project: detectProject(text), source, chatId: chatId ?? null });
     this.db.prepare('INSERT INTO chat (source, role, text, task_id, created_at) VALUES (?,?,?,?,?)').run(source, 'kevin', text, task.id, nowIso());
     emit('chat', { role: 'kevin', text, taskId: task.id });
     this.runner.tick();
@@ -218,6 +237,14 @@ export class Core {
         this.messages.set(m.id, { status: t.state === 'done' ? 'done' : 'failed' });
         const body = t.state === 'done' ? (t.result || '(done, no result)') : `Couldn't finish: ${(t.error || '').slice(0, 600)}`;
         this.messages.send({ from: t.agent_id || 'ren', to: m.from_agent, kind: 'reply', subject: `Re: ${m.subject}`, body, project: m.project, originTaskId: t.id, replyTo: m.id, key: `reply:${m.id}` });
+        // Ren delegated part of Kevin's chat request: pass the result on to Kevin.
+        const origin = m.origin_task_id ? this.tasks.get(m.origin_task_id) : undefined;
+        if (m.from_agent === 'ren' && origin && (origin.kind === 'chat' || origin.kind === 'request') && t.state === 'done') {
+          const text = `${t.agent_id} finished "${m.subject}":\n${body}`;
+          this.db.prepare('INSERT INTO chat (source, role, text, task_id, created_at) VALUES (?,?,?,?,?)').run(origin.source, 'ren', text, t.id, nowIso());
+          emit('chat', { role: 'ren', text, taskId: t.id });
+          if (origin.source === 'telegram') await this.telegram.send(`${text.slice(0, 1500)}${this.telegram.link('work/' + t.id)}`);
+        }
         if (m.from_agent === 'kevin') await this.telegram.send(`${t.agent_id}: ${t.state === 'done' ? '✅' : '⚠'} ${m.subject}\n${body.slice(0, 900)}${this.telegram.link('agents/' + t.agent_id)}`);
       }
       this.workLoop();

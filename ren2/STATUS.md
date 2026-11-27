@@ -1,8 +1,17 @@
 # Ren 2 — STATUS
 
-_Last updated 2026-11-27 · build: M1–M4 done in the cloud, M5 (Pi deploy) scripted and tested on x86 only, plus work desks (agents working on their own and together)._
+_Last updated 2026-11-27 · Ren is now the head (HQ, sectors, delegation) · build: M1–M4 done in the cloud, M5 (Pi deploy) scripted and tested on x86 only, plus work desks (agents working on their own and together)._
 
 ## Needs Kevin
+
+0. **Media niches.** Add them to `config/sectors.yaml` under `media → niches`. Until then Media
+   picks the best-performing niche from analytics and says so, and Ren keeps asking. Also
+   check the sector goals and targets in that file; they're my first guess from your
+   description.
+0. **Showrunner, Builder and Storefronts (Worklane) API routes** are the most valuable to map
+   first. The live routes needed are: Showrunner video/clips/thumbnail/publish/analytics,
+   Builder sweep/candidates/create_site/outreach, and Storefronts properties/summary/signups.
+   Until then everything runs on MOCK fixtures.
 
 Everything below is optional for Ren 2 to run. Each missing item shows as
 `needs_credentials` / `needs_config` / `MOCK` in the dashboard, never as fake success.
@@ -88,6 +97,57 @@ Everything below is optional for Ren 2 to run. Each missing item shows as
 - **Tests:** `npm test` passes 53 `node:test` tests across 7 files, covering every endpoint.
   `npm run smoke` runs the real process end to end: the M1 demo over a fake Telegram, a
   `kill -9` resume, and the kill switch.
+
+## Ren as head (added 2026-11-27, at Kevin's request)
+
+- **Home is Ren HQ.** It shows:
+  - Ren's current plan: a headline plus numbered asks, each with its owner desk and live
+    status.
+  - **Needs you**, one list holding site reviews, Ren's questions (answered inline) and gate
+    decisions.
+  - The team, with status lights, and today's spend.
+  - **Sectors**: Media, Websites, Storefronts and Ren itself. Each has its goals, the current
+    number against a target, and a ✓ or ✗. Adapter numbers are tagged MOCK; Ren 2's own
+    counts are real.
+  - The team channel.
+- **Sectors** live in `config/sectors.yaml` (goals, targets, niches, channels, BC areas,
+  monetization milestones marked VERIFY).
+- **Ren** (`agents/ren.yaml`) runs on four jobs:
+  - 07:00 plan: reads the HQ report, then delegates 3–6 concrete asks.
+  - Hourly check-in: Worklane sign-ups go to Sites at high priority, and stuck work gets
+    unstuck.
+  - 19:45 evening review: what moved in each sector today.
+  - Monday weekly strategy.
+
+  Ren may move budget between agents (it can only shift money, never add it) and pause or
+  resume agents. Ren proposes new agents as questions; it never creates them. Without a
+  planning model, Ren falls back to a rule-based plan.
+- **Desks by sector:**
+  - **Media (Showrunner).** Daily: pick a niche from analytics, write the script, then video,
+    3 clips and a thumbnail, then post. Posting is gated until you always-allow it. Monday:
+    analytics on what's working and the distance to monetization; the lesson goes to Ren.
+  - **Scout.** Sweeps the next BC area each weekday (rotation set in sectors.yaml), rates and
+    shortlists the candidates, saves them to memory, and tells Ren.
+  - **Sites.** Worklane sign-ups first. Otherwise it builds Ren-approved demos for
+    candidates, and only when the system is idle. Every finished site goes to Ren for review.
+  - **Ren review → Kevin.** Ren writes Good / Change / Add notes and puts the site in Needs
+    you. Your verdict is saved to memory as a decision. "Needs changes" sends the site back
+    to Sites at high priority. "Approve" hands it to Outreach. Either way, Ren then rewrites
+    `web-design-general` and creates or updates `web-niche-<niche>` skills from all our
+    decisions.
+  - **Outreach.** Sends the demo email through Builder (the contact gate asks you first).
+    The Automation Pro trades batch through Growth Engine is kept.
+  - **Storefront Analyst.** Mon/Thu: every property (Worklane, book site, shop), the biggest
+    leak on each and the smallest fix. Wednesday: Amazon resale and dropshipping research.
+- **Chat goes to Ren.** Ren answers you, or delegates. When a delegated task finishes, its
+  result comes back into the chat (and to Telegram).
+- **Live run (Claude CLI):**
+  - Ren's plan delegated 6 asks.
+  - Scout swept an area, the Analyst covered all three properties, and Media ran its
+    analytics.
+  - Sites built the Refill Pack page, Ren reviewed it, and the review is waiting for Kevin.
+  - Ren asked for the niches.
+- **Tests:** 60 pass, and the smoke test passes.
 
 ## Work desks (added 2026-11-27, at Kevin's request)
 

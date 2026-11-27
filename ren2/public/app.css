@@ -141,3 +141,28 @@ label { display: grid; gap: 6px; color: var(--muted); font-size: 14px; }
 .post .arrow { color: var(--muted); }
 .post .subj { font-size: 15px; }
 details summary { cursor: pointer; min-height: 32px; display: list-item; }
+
+/* Ren HQ */
+.renrow { display: flex; gap: 16px; align-items: center; }
+.small-orb { padding: 0; }
+.small-orb .orb { width: 96px; height: 96px; }
+.headline { font-size: 19px; font-weight: 600; margin: 4px 0; }
+.planlist { margin-top: 12px; }
+.section { font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 22px 0 10px; }
+.sectors { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
+.sector { display: grid; gap: 8px; }
+.goals { display: grid; gap: 2px; }
+.goal { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.goal .gv { white-space: nowrap; text-align: right; }
+.ok { color: var(--ok); }
+.no { color: var(--bad); }
+.warnline { background: #33290f; color: #ffe7b0; border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.mini { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); text-decoration: none; padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; min-height: 32px; }
+.teamlist { display: grid; gap: 6px; }
+.tm { display: grid; grid-template-columns: 14px auto 1fr; gap: 10px; align-items: center; text-decoration: none; color: var(--text); padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); min-height: 48px; }
+.tm .clip1 { text-align: right; }
+.review { padding: 12px 0; display: grid; gap: 6px; }
+.btns2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.openprev { display: inline-flex; align-items: center; text-decoration: none; width: fit-content; }
+.s-queued, .s-queued_idle, .s-in_progress { color: var(--cli); border-color: #463a6b; }
+@media (max-width: 600px) { .renrow { flex-direction: column; align-items: flex-start; } }

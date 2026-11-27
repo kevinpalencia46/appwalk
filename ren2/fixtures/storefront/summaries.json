@@ -1,0 +1,14 @@
+{
+  "worklane": { "name": "Worklane", "visits_30d": 430, "unique_visitors_30d": 388, "conversions_30d": 2, "conversion_label": "demo sign-ups",
+    "funnel": [ { "step": "visits", "count": 430 }, { "step": "pricing views", "count": 61 }, { "step": "demo form starts", "count": 7 }, { "step": "demo sign-ups", "count": 2 } ],
+    "traffic_sources": [ { "source": "google", "visits": 190 }, { "source": "direct", "visits": 150 }, { "source": "instagram", "visits": 90 } ],
+    "top_pages": [ { "path": "/", "visits": 300, "bounce_pct": 64 }, { "path": "/pricing", "visits": 61, "bounce_pct": 48 }, { "path": "/demo", "visits": 7, "bounce_pct": 71 } ], "mobile_pct": 72 },
+  "book": { "name": "Book site", "visits_30d": 210, "unique_visitors_30d": 190, "conversions_30d": 3, "conversion_label": "book sales",
+    "funnel": [ { "step": "visits", "count": 210 }, { "step": "buy clicks", "count": 14 }, { "step": "book sales", "count": 3 } ],
+    "traffic_sources": [ { "source": "instagram", "visits": 120 }, { "source": "direct", "visits": 90 } ],
+    "top_pages": [ { "path": "/", "visits": 180, "bounce_pct": 58 }, { "path": "/excerpt", "visits": 30, "bounce_pct": 40 } ], "mobile_pct": 81 },
+  "shop": { "name": "Shop", "visits_30d": 1012, "unique_visitors_30d": 874, "conversions_30d": 0, "conversion_label": "orders",
+    "funnel": [ { "step": "visits", "count": 1012 }, { "step": "add-to-carts", "count": 23 }, { "step": "checkout starts", "count": 9 }, { "step": "orders", "count": 0 } ],
+    "traffic_sources": [ { "source": "tiktok", "visits": 512 }, { "source": "direct", "visits": 241 }, { "source": "instagram", "visits": 158 }, { "source": "google", "visits": 101 } ],
+    "top_pages": [ { "path": "/", "visits": 640, "bounce_pct": 78 }, { "path": "/products/starter-kit", "visits": 212, "bounce_pct": 64 }, { "path": "/checkout", "visits": 9, "bounce_pct": 100 } ], "mobile_pct": 86 }
+}

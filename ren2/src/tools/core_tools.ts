@@ -60,12 +60,23 @@ export const thinkTool: Tool = {
         prompt: String(args.prompt),
         system: args.system ? String(args.system) : 'You are Ren, Kevin\'s operating assistant. Be concise, concrete and honest. Never invent numbers; say when data is missing or MOCK.',
         agentId: ctx.task.agent_id,
-        agentCap: agent?.daily_budget_usd,
+        agentCap: agent ? ctx.core.agents.capFor(agent.id) : undefined,
         taskId: ctx.task.id,
         prefer,
         maxTokens: args.max_tokens ? Number(args.max_tokens) : undefined,
         signal: ctx.signal,
       });
+      if (args.json) {
+        const m = r.text.match(/[\[{][\s\S]*[\]}]/);
+        let parsed: any;
+        try {
+          parsed = m ? JSON.parse(m[0]) : null;
+        } catch {
+          parsed = null;
+        }
+        if (!parsed || typeof parsed !== 'object') throw new ToolError(`expected JSON from the model, got: ${r.text.slice(0, 200)}`);
+        return { output: r.text, data: { ...(Array.isArray(parsed) ? { items: parsed } : parsed), _model: r.model, _usd: r.usd } };
+      }
       return { output: r.text, data: { model: r.model, provider: r.provider, usd: r.usd } };
     } catch (e) {
       if (e instanceof NoModelError && args.fallback === 'extractive') {
@@ -76,9 +87,36 @@ export const thinkTool: Tool = {
   },
 };
 
+export const skillsTool: Tool = {
+  name: 'skills',
+  description: 'Team skills (skills/*.md). args: { action: list|get|write|write_many, id?, ids?, name?, description?, projects?, body?, json? }.',
+  async status(core) {
+    return { status: 'ok', detail: `${core.skills.list().length} skills` };
+  },
+  async run(args, ctx) {
+    const sk = ctx.core.skills;
+    if (args.action === 'list') return { output: sk.list().map((s) => `${s.id}: ${s.name} — ${s.description}`).join('\n') };
+    if (args.action === 'get') {
+      const ids: string[] = args.ids || [args.id];
+      return { output: ids.map((id) => (sk.get(id) ? `### ${id}\n${sk.get(id)!.body}` : `### ${id}\n(does not exist yet)`)).join('\n\n') };
+    }
+    const list: any[] = args.action === 'write_many' ? (typeof args.json === 'string' ? JSON.parse(args.json.match(/\{[\s\S]*\}/)?.[0] || '{}') : args.json || {}).skills || [] : [args];
+    if (!list.length) throw new ToolError('no skills to write');
+    const done: string[] = [];
+    for (const s of list) {
+      if (!s?.id || !s?.body) continue;
+      sk.write({ id: String(s.id), name: s.name, description: s.description, projects: s.projects, body: String(s.body) });
+      done.push(String(s.id));
+    }
+    if (!done.length) throw new ToolError('no valid skills in the input');
+    ctx.core.messages.send({ from: ctx.task.agent_id || 'ren', to: '*', kind: 'fyi', subject: `Skills updated: ${done.join(', ')}`, body: list.map((s) => `### ${s.id}\n${s.body}`).join('\n\n').slice(0, 4000), key: `${ctx.key}:fyi` });
+    return { output: `skills written: ${done.join(', ')}`, data: { ids: done } };
+  },
+};
+
 export const messageTool: Tool = {
   name: 'message',
-  description: 'Talk to teammates. args: { to: agent id | "*" (whole team), kind: request|fyi, subject, body }. A request becomes work on their desk; its result comes back to you as a reply.',
+  description: 'Talk to teammates. args: { to: agent id | "*" (whole team), kind: request|fyi, subject, body, priority?: high, when?: idle }. A request becomes work on their desk; its result comes back to you as a reply.',
   async status() {
     return { status: 'ok' };
   },
@@ -90,7 +128,7 @@ export const messageTool: Tool = {
     if (to === '*' && kind === 'request') throw new ToolError('requests go to one agent, not the whole team');
     if (!args.subject) throw new ToolError('message needs a subject');
     const from = ctx.task.agent_id || 'ren';
-    const m = ctx.core.messages.send({ from, to, kind, subject: String(args.subject), body: String(args.body ?? ''), project: args.project || ctx.task.project, originTaskId: ctx.task.id, key: ctx.key });
+    const m = ctx.core.messages.send({ from, to, kind, subject: String(args.subject), body: String(args.body ?? ''), project: args.project || ctx.task.project, originTaskId: ctx.task.id, key: ctx.key, priority: args.priority === 'high' ? 1 : 0, idleOnly: args.when === 'idle' });
     return { output: `${kind === 'request' ? 'asked' : 'told'} ${to === '*' ? 'the team' : to}: ${m.subject} (message #${m.id})`, data: { messageId: m.id } };
   },
 };

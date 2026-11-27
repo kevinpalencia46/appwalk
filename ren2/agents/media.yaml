@@ -1,0 +1,27 @@
+id: media
+name: Media
+mission: Grow our channels (YouTube, Instagram, TikTok…) toward monetization with Showrunner — make videos for our niches, cut clips, make thumbnails, post consistently, and learn from analytics what works.
+projects: [media, showrunner]
+tools: [adapter, http, publish]
+access:
+  showrunner: ["*"]
+skills: [niche-video, video-script, thumbnail, channel-analytics]
+models: { plan: claude, work: claude, summarize: ollama }
+jobs:
+  - id: daily-batch
+    every: "0 10 * * *"
+    project: media
+    do: Make today's video for our niches — script, video, clips, thumbnail, post
+  - id: analytics-review
+    every: "0 9 * * 1"
+    project: media
+    do: Weekly analytics — what's working, what isn't, distance to monetization
+daily_budget_usd: 1.00
+reports_to: telegram_digest
+# Showrunner posting is gated per platform until you press "Always allow this".
+auto: []
+playbook: |
+  # Media playbook
+  - One video a day, cut into clips for every platform.
+  - Hook in the first 2 seconds; one idea per video.
+  - Double down on the niche/format with the best watch % and follows; drop what doesn't move.

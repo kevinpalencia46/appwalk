@@ -201,6 +201,39 @@ const MIGRATIONS: string[] = [
     PRIMARY KEY (agent_id, job_id)
   );
   `,
+  // 3 — Ren as head: plans, site reviews, request priority + idle-only work
+  `
+  ALTER TABLE messages ADD COLUMN priority INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE messages ADD COLUMN idle_only INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE plans (
+    id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL DEFAULT 'daily',
+    headline TEXT NOT NULL,
+    items TEXT NOT NULL DEFAULT '[]',
+    questions TEXT NOT NULL DEFAULT '[]',
+    notes TEXT,
+    source TEXT NOT NULL DEFAULT 'model',
+    task_id INTEGER,
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE reviews (
+    id INTEGER PRIMARY KEY,
+    site_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    niche TEXT,
+    candidate_id TEXT,
+    preview_url TEXT,
+    ren_notes TEXT,
+    kevin_good TEXT,
+    kevin_change TEXT,
+    kevin_add TEXT,
+    verdict TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    task_id INTEGER,
+    created_at TEXT NOT NULL,
+    resolved_at TEXT
+  );
+  `,
 ];
 
 export function openDb(file: string): DB {

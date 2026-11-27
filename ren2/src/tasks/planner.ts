@@ -7,6 +7,7 @@ import type { TaskRow, StepPlan } from './store.js';
 import type { AgentDef } from '../agents/agents.js';
 import { NoModelError } from '../router/router.js';
 import { log } from '../log.js';
+import { builtinPlan } from '../agents/plans.js';
 
 export const PROJECTS: Record<string, RegExp> = {
   storefront: /\bstore ?front\b|\bshop\b|\borders?\b|\bcheckout/i,
@@ -25,6 +26,7 @@ export function detectProject(text: string): string | null {
 }
 
 const QUESTION = /^(summari[sz]e|what|who|why|how|when|where|which|tell me|list|show|explain|remind|do we|did we|is there|are there)\b|\?\s*$/i;
+export const isQuestion = (s: string) => QUESTION.test(s.trim());
 
 export function directPlan(objective: string, project: string | null): StepPlan[] {
   return [
@@ -55,7 +57,7 @@ export function parsePlanJson(text: string, toolNames: string[]): StepPlan[] {
 
 export async function planTask(core: Core, task: TaskRow, agent: AgentDef | null, signal: AbortSignal): Promise<StepPlan[]> {
   if (agent) {
-    const p = core.agents.planFor(agent, task);
+    const p = core.agents.planFor(agent, task) ?? builtinPlan(core, agent, task);
     if (p) return p;
   }
   const project = task.project;

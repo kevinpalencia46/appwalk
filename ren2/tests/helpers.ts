@@ -49,6 +49,8 @@ export function testSettings(dir: string, over: Partial<Settings> = {}): Setting
   const agentsDir = path.join(dir, 'agents');
   fs.mkdirSync(agentsDir, { recursive: true });
   for (const f of fs.readdirSync(path.join(ROOT, 'agents'))) fs.copyFileSync(path.join(ROOT, 'agents', f), path.join(agentsDir, f));
+  const skillsDir = path.join(dir, 'skills');
+  fs.cpSync(path.join(ROOT, 'skills'), skillsDir, { recursive: true });
   const knowledgeDir = path.join(dir, 'knowledge');
   fs.mkdirSync(path.join(knowledgeDir, 'storefront'), { recursive: true });
   fs.writeFileSync(path.join(knowledgeDir, 'storefront', 'facts.md'), '---\nproject: storefront\nkind: fact\n---\n# Storefront traffic\n\nStorefront has about 1,000 visits and 0 orders.\n');
@@ -59,6 +61,7 @@ export function testSettings(dir: string, over: Partial<Settings> = {}): Setting
     workspace: path.join(dir, 'workspace'),
     knowledgeDir,
     agentsDir,
+    skillsDir,
     configDir: path.join(ROOT, 'config'),
     ownerToken: '',
     telegramToken: '',

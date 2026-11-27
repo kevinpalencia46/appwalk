@@ -1,0 +1,21 @@
+id: scout
+name: Scout
+mission: Sweep BC areas for local businesses with no website or an outdated one, rate them, and keep a ranked list for Ren and Sites.
+projects: [websites, builder]
+tools: [adapter, system]
+access:
+  builder: [read, sweep]
+skills: [area-sweep]
+models: { plan: claude, work: deepseek, summarize: ollama }
+jobs:
+  - id: sweep
+    every: "0 9 * * 1-5"
+    project: websites
+    do: Sweep the next BC area and shortlist the best candidates
+daily_budget_usd: 0.30
+reports_to: telegram_digest
+auto: []
+playbook: |
+  # Scout playbook
+  - One area a weekday, in rotation (config/sectors.yaml → websites.areas).
+  - Best candidates: no site or a broken/non-mobile site, strong reviews, a clear problem a site solves.

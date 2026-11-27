@@ -5,12 +5,12 @@ import { filesTool } from './files.js';
 import { httpTool } from './http.js';
 import { claudeCodeTool } from './claude_code.js';
 import { mcpTool } from './mcp.js';
-import { memoryTool, thinkTool, handoffTool, notifyTool, messageTool } from './core_tools.js';
+import { memoryTool, thinkTool, handoffTool, notifyTool, messageTool, skillsTool } from './core_tools.js';
 import { adapterTool, publishTool, systemTool } from './actions.js';
 
 export class Tools {
   private map = new Map<string, Tool>();
-  constructor(tools: Tool[] = [shellTool, filesTool, httpTool, claudeCodeTool, mcpTool, memoryTool, thinkTool, messageTool, handoffTool, notifyTool, adapterTool, publishTool, systemTool]) {
+  constructor(tools: Tool[] = [shellTool, filesTool, httpTool, claudeCodeTool, mcpTool, memoryTool, thinkTool, messageTool, skillsTool, handoffTool, notifyTool, adapterTool, publishTool, systemTool]) {
     for (const t of tools) this.map.set(t.name, t);
   }
   get(name: string) {

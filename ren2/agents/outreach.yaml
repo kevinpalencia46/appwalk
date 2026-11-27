@@ -1,11 +1,12 @@
 id: outreach
 name: Outreach
-mission: Find prospects (local businesses that fit Automation Pro and the trades offers) and draft personalized messages into the Growth Engine. Sending is gated.
-projects: [bge]
+mission: Contact businesses we built demos for (through Builder) and Automation Pro prospects (through Growth Engine). Personal, honest, short. Sending is gated.
+projects: [websites, bge]
 tools: [adapter, http]
 access:
+  builder: [candidates, outreach_draft, outreach_send]
   bge: [leads, prospects, create_drafts, send_drafts]
-skills: [cold-email-trades]
+skills: [demo-outreach, cold-email-trades]
 models: { plan: claude, work: claude, summarize: ollama }
 jobs:
   - id: trades-batch
@@ -18,5 +19,5 @@ auto: []
 playbook: |
   # Outreach playbook
   - ≤ 90 words, one specific reason it fits them, one soft ask.
+  - Lead with the demo we already built them.
   - Never claim results we can't show.
-  - Batch the week's drafts into one decision.

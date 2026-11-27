@@ -77,7 +77,7 @@ function gatedPlan() {
 
 test('gate: needs_decision → approve resumes → done', async () => {
   const { core } = makeCore();
-  const t = core.tasks.create({ objective: 'post', agentId: 'content', kind: 'agent', plan: gatedPlan() });
+  const t = core.tasks.create({ objective: 'post', agentId: 'media', kind: 'agent', plan: gatedPlan() });
   const parked = await runToEnd(core, t.id);
   assert.equal(parked.state, 'needs_decision');
   const [d] = core.gate.open();
@@ -94,7 +94,7 @@ test('gate: needs_decision → approve resumes → done', async () => {
 
 test('gate: reject ends the task without running the action', async () => {
   const { core } = makeCore();
-  const t = core.tasks.create({ objective: 'post', agentId: 'content', kind: 'agent', plan: gatedPlan() });
+  const t = core.tasks.create({ objective: 'post', agentId: 'media', kind: 'agent', plan: gatedPlan() });
   await runToEnd(core, t.id);
   core.decide(core.gate.open()[0].id, 'reject', 'not now');
   const done = await runToEnd(core, t.id, ['done', 'failed']);
@@ -107,7 +107,7 @@ test('gate: reject ends the task without running the action', async () => {
 test('gate: edit revises the draft and asks again', async () => {
   const { core, providers } = makeCore();
   (providers.anthropic as any).reply = () => 'Hello world post — now shorter';
-  const t = core.tasks.create({ objective: 'post', agentId: 'content', kind: 'agent', plan: gatedPlan() });
+  const t = core.tasks.create({ objective: 'post', agentId: 'media', kind: 'agent', plan: gatedPlan() });
   await runToEnd(core, t.id);
   const first = core.gate.open()[0];
   core.decide(first.id, 'edit', 'make it shorter');
@@ -123,22 +123,22 @@ test('gate: edit revises the draft and asks again', async () => {
 
 test('gate: "always allow" writes the agent auto list; next time no decision', async () => {
   const { core } = makeCore();
-  const t = core.tasks.create({ objective: 'post', agentId: 'content', kind: 'agent', plan: gatedPlan() });
+  const t = core.tasks.create({ objective: 'post', agentId: 'media', kind: 'agent', plan: gatedPlan() });
   await runToEnd(core, t.id);
   core.decide(core.gate.open()[0].id, 'always');
   await runToEnd(core, t.id, ['done']);
-  assert.deepEqual(core.agents.get('content')!.auto, ['post:drafts']);
-  assert.match(fs.readFileSync(core.agents.get('content')!.file, 'utf8'), /# drafts = drafts-only/, 'comments preserved');
-  const t2 = core.tasks.create({ objective: 'post again', agentId: 'content', kind: 'agent', plan: gatedPlan() });
+  assert.deepEqual(core.agents.get('media')!.auto, ['post:drafts']);
+  assert.match(fs.readFileSync(core.agents.get('media')!.file, 'utf8'), /# Showrunner posting is gated/, 'comments preserved');
+  const t2 = core.tasks.create({ objective: 'post again', agentId: 'media', kind: 'agent', plan: gatedPlan() });
   assert.equal((await runToEnd(core, t2.id)).state, 'done');
-  core.agents.removeAuto('content', 'post:drafts');
-  assert.deepEqual(core.agents.get('content')!.auto, []);
+  core.agents.removeAuto('media', 'post:drafts');
+  assert.deepEqual(core.agents.get('media')!.auto, []);
   await core.stop();
 });
 
 test('stale sweep marks old decisions stale and never approves them', async () => {
   const { core } = makeCore();
-  const t = core.tasks.create({ objective: 'post', agentId: 'content', kind: 'agent', plan: gatedPlan() });
+  const t = core.tasks.create({ objective: 'post', agentId: 'media', kind: 'agent', plan: gatedPlan() });
   await runToEnd(core, t.id);
   const stale = core.gate.sweepStale(Date.now() + 49 * 3600_000);
   assert.equal(stale.length, 1);
