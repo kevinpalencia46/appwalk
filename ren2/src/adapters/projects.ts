@@ -187,13 +187,21 @@ export class Showrunner extends Adapter {
     analytics: { kind: 'read', description: 'recent videos per channel: views, retention, likes, follows gained (args: channel?)' },
     jobs: { kind: 'read', description: 'content jobs and their state' },
     queue_job: { kind: 'action', description: 'queue a script → voice → render video job (args: script, title, format: long|short, niche?)' },
-    make_clips: { kind: 'action', description: 'cut a rendered video into short clips (args: job_id)' },
+    credits: { kind: 'read', description: 'Showrunner generation credits left and what each format costs' },
+    make_short: { kind: 'action', description: 'make a Short/Reel with fresh vertical visuals, reusing a long-form\'s audio + assets (args: script, title, visuals, from_job_id or "latest_long"; falls back to a cheap clip when credits run low)' },
+    make_clips: { kind: 'action', description: 'cut a rendered video into short clips (args: job_id) — the credit-saving fallback' },
     make_thumbnail: { kind: 'action', description: 'generate a thumbnail (args: job_id, idea?)' },
     publish_render: { kind: 'action', description: 'post a video or its clips (args: job_id, format: long|short, platform, clips?)', gate: { gate: 'publish', actionType: 'video:publish' } },
   };
   async keyNumbers() {
     if (this.mode !== 'mock') return null;
-    return this.fixture<any[]>('channels').map((c) => ({ label: `${c.platform} followers MOCK`, value: c.followers }));
+    return [...this.fixture<any[]>('channels').map((c) => ({ label: `${c.platform} followers MOCK`, value: c.followers })), { label: 'Credits left MOCK', value: this.creditsLeft().left }];
+  }
+  /** Mock credit balance: fixture balance minus what Ren 2's mock jobs cost. */
+  private creditsLeft() {
+    const f = this.fixture('credits');
+    const spent = Object.entries(this.mockStore().all()).filter(([k]) => k.startsWith('job:')).reduce((s, [, v]: [string, any]) => s + Number(v?.cost || 0), 0);
+    return { left: f.balance - spent, cost_long: f.cost_long, cost_short: f.cost_short, cost_clip: f.cost_clip };
   }
   protected async mock(m: string, a: Record<string, any>, ctx: CallCtx) {
     const store = this.mockStore();
@@ -213,10 +221,44 @@ export class Showrunner extends Adapter {
       const prev = store.get(ctx.key);
       if (prev) return mock(`job already queued: ${prev.id}`, prev);
       if (!a.script || String(a.script).startsWith('(optional step failed')) throw new Error('no script to queue');
-      const rec = { kind: 'video', id: `job-${ctx.taskId}`, format: a.format === 'long' ? 'long' : 'short', title: a.title || 'untitled', niche: a.niche || null, state: 'queued (mock — no render happens)', script: String(a.script).slice(0, 4000) };
+      const rec = { kind: 'video', id: `job-${ctx.taskId}`, created_at: new Date().toISOString(), cost: a.format === 'long' ? this.fixture('credits').cost_long : this.fixture('credits').cost_short, format: a.format === 'long' ? 'long' : 'short', title: a.title || 'untitled', niche: a.niche || null, state: 'queued (mock — no render happens)', script: String(a.script).slice(0, 4000) };
       store.put(ctx.key, rec);
       store.put(`job:${rec.id}`, rec);
       return mock(`queued Showrunner ${rec.format === 'long' ? 'long-form' : 'short'} job ${rec.id}`, rec);
+    }
+    if (m === 'credits') {
+      const c = this.creditsLeft();
+      return mock(`${c.left} credits left (long ${c.cost_long}, short ${c.cost_short}, clip ${c.cost_clip})`, c);
+    }
+    if (m === 'make_short') {
+      const prev = store.get(ctx.key);
+      if (prev) return mock(`short already made: ${prev.id} (${prev.mode})`, prev);
+      if (!a.script || String(a.script).startsWith('(optional step failed')) throw new Error('no script for the short');
+      const jobs = Object.entries(store.all()).filter(([k, v]: [string, any]) => k.startsWith('job:') && v?.format === 'long').map(([, v]) => v as any);
+      const source = a.from_job_id === 'latest_long' ? jobs.sort((x, y) => String(y.created_at || '').localeCompare(String(x.created_at || '')))[0] : a.from_job_id ? store.get(`job:${a.from_job_id}`) : null;
+      const c = this.creditsLeft();
+      const reserve = Number(a.min_credits ?? 50);
+      // Fresh vertical visuals by default; cut a clip from the long-form only when credits are low.
+      const lowCredits = c.left - c.cost_short < reserve;
+      const mode = lowCredits && source && a.allow_clip_fallback !== false ? 'clip' : 'fresh';
+      const rec = {
+        kind: 'video',
+        id: `short-${ctx.taskId}-${ctx.key.split('s').pop()}`,
+        format: 'short',
+        mode,
+        title: a.title || 'untitled',
+        niche: a.niche || source?.niche || null,
+        source: source?.id ?? null,
+        reused: source ? (mode === 'clip' ? ['footage', 'audio'] : ['audio', 'assets']) : [],
+        visuals: mode === 'fresh' ? String(a.visuals || 'new vertical visuals') : 'cut from the long-form',
+        cost: mode === 'clip' ? c.cost_clip : c.cost_short,
+        state: 'queued (mock — no render happens)',
+        created_at: new Date().toISOString(),
+      };
+      store.put(ctx.key, rec);
+      store.put(`job:${rec.id}`, rec);
+      const how = mode === 'fresh' ? `fresh vertical visuals${source ? `, reusing ${source.id}'s audio + assets` : ''}` : `clip cut from ${source.id} to save credits (${c.left} left)`;
+      return mock(`short ${rec.id}: ${how}`, rec);
     }
     if (m === 'make_clips' || m === 'make_thumbnail') {
       const job = store.get(`job:${a.job_id}`);

@@ -30,8 +30,8 @@ function brain(core: Core, providers: any, extra: (p: string) => string | null =
     if (p.includes('Review this demo site')) return 'Good: clear headline\nChange: add hours\nAdd: tap-to-call\nVerdict suggestion: needs changes';
     if (p.includes('Turn our decisions into reusable skills'))
       return JSON.stringify({ skills: [{ id: 'web-design-general', name: 'Web design (general)', description: 'grows from reviews', projects: ['builder'], body: '- Hours visible above the fold\n- Tap-to-call button' }, { id: 'web-niche-plumbing', name: 'Plumbing sites', description: 'plumbing niche', projects: ['builder'], body: '- Emergency line first' }] });
-    if (p.includes('Plan ONE long-form')) return JSON.stringify({ niche: 'niche-1', title: 'Fixture title', script: 'Cold open. Section 1. Section 2. Subscribe.', clip_moments: ['the reveal', 'the tip'], thumbnail_idea: 'big text', note: 'best watch %' });
-    if (p.includes('Plan ONE short')) return JSON.stringify({ niche: 'niche-1', title: 'Fixture short', script: 'Hook. One idea. Loop.', note: 'clips do well' });
+    if (p.includes('Plan ONE long-form')) return JSON.stringify({ niche: 'tech tips', title: 'Fixture title', script: 'Cold open. Section 1. Section 2. Subscribe.', shorts: [{ title: 'Short A', script: 'Hook A', visuals: 'big captions, phone close-ups' }, { title: 'Short B', script: 'Hook B', visuals: 'split screen before/after' }], thumbnail_idea: 'big text', note: 'best watch %' });
+    if (p.includes('Plan ONE short')) return JSON.stringify({ niche: 'local business stories', title: 'Fixture short', script: 'Hook. One idea. Loop.', visuals: 'owner portrait, captions', note: 'stories do well' });
     if (p.includes('Weekly analytics review')) return "## What's working\n- niche-1 clips (MOCK)\n## What isn't\n- long videos\n## 3 changes\n1. more clips\n## Distance to monetization\n- far (MOCK)";
     if (p.includes('first email offering the demo')) return JSON.stringify({ subject: 'We built you a demo', body: 'Hi — here is a free example site: link. Kevin, Worklane' });
     if (p.includes('For EACH property')) return '## worklane\n- leak: demo form (MOCK)\n## Top 3 actions\n1. shorten demo form (sites)';
@@ -212,8 +212,10 @@ test('Media: long-form daily (video + clips + thumbnail), shorts twice a day; po
   assert.equal(parked.state, 'needs_decision', parked.error || '');
   const steps = core.tasks.steps(t.id);
   assert.match(steps[3].output!, /queued Showrunner long-form job/);
-  assert.match(steps[4].output!, /2 clips/);
-  assert.match(steps[5].output!, /thumbnail made/);
+  assert.match(steps[4].output!, /thumbnail made/);
+  assert.match(steps[5].output!, /fresh vertical visuals, reusing job-\d+'s audio \+ assets/);
+  assert.match(steps[6].output!, /fresh vertical visuals/);
+  assert.match(core.tasks.steps(t.id)[2].args, /tech tips, local business stories/, 'our niches reach the prompt');
   const d = core.gate.open()[0];
   assert.equal(d.action_type, 'video:publish:long');
   assert.match(d.preview!, /LONG-FORM for YouTube/);
@@ -227,10 +229,15 @@ test('Media: long-form daily (video + clips + thumbnail), shorts twice a day; po
   const sh = core.agents.runJob(media, media.jobs.find((j) => j.id === 'shorts-midday')!, 'dashboard')!;
   const shDone = await runToEnd(core, sh.id);
   assert.equal(shDone.state, 'done', shDone.error || '');
-  assert.match(core.tasks.steps(sh.id)[3].output!, /queued Showrunner short job/);
+  assert.match(core.tasks.steps(sh.id)[3].output!, /fresh vertical visuals, reusing job-\d+'s audio \+ assets/, 'later shorts reuse today\'s long-form assets');
   const { metric } = await import('../src/hq.js');
   assert.equal((await metric(core, 'long_videos_7d')).value, 1);
-  assert.equal((await metric(core, 'shorts_7d')).value, 3, '2 clips + 1 native short');
+  assert.equal((await metric(core, 'shorts_7d')).value, 3, '3 shorts with fresh visuals');
+  // Low credits: Showrunner cuts a clip from the long-form instead (cheaper).
+  const sr = core.adapters.get('showrunner')!;
+  const cheap = await sr.call('make_short', { from_job_id: 'latest_long', script: 'x', title: 'y', min_credits: 100000 }, { key: 'lowcredit', taskId: 1, agentId: 'media' });
+  assert.equal(cheap.data.mode, 'clip');
+  assert.match(cheap.text, /clip cut from job-\d+ to save credits/);
   const a = core.agents.runJob(media, media.jobs.find((j) => j.id === 'analytics-review')!, 'dashboard')!;
   const done = await runToEnd(core, a.id);
   assert.equal(done.state, 'done', done.error || '');

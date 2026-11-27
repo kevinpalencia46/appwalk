@@ -26,11 +26,12 @@ export interface Sector {
   areas?: string[];
   properties?: string[];
   milestones?: { platform: string; text: string }[];
+  credit_reserve?: number;
 }
 
 export function loadSectors(configDir: string): Sector[] {
   const raw = readYaml<{ sectors: Record<string, any> }>(path.join(configDir, 'sectors.yaml'), { sectors: {} }).sectors || {};
-  return Object.entries(raw).map(([id, s]) => ({ id, name: s.name || id, why: s.why || '', agents: s.agents || [], goals: s.goals || [], niches: s.niches || [], channels: s.channels || [], areas: s.areas || [], properties: s.properties, milestones: s.milestones || [] }));
+  return Object.entries(raw).map(([id, s]) => ({ id, name: s.name || id, why: s.why || '', agents: s.agents || [], goals: s.goals || [], niches: s.niches || [], channels: s.channels || [], areas: s.areas || [], properties: s.properties, milestones: s.milestones || [], credit_reserve: s.credit_reserve }));
 }
 
 const since = (days: number) => new Date(Date.now() - days * 86400_000).toISOString();
@@ -58,8 +59,10 @@ export async function metric(core: Core, name: string): Promise<MetricValue> {
         };
       case 'shorts_7d': {
         const made = n("SELECT COUNT(*) n FROM steps WHERE status = 'done' AND tool = 'adapter' AND json_extract(args, '$.method') = 'queue_job' AND json_extract(args, '$.format') = 'short' AND finished_at >= ?", since(7));
+        const fresh = n("SELECT COUNT(*) n FROM steps WHERE status = 'done' AND tool = 'adapter' AND json_extract(args, '$.method') = 'make_short' AND json_extract(data, '$.mode') = 'fresh' AND finished_at >= ?", since(7));
+        const clipShorts = n("SELECT COUNT(*) n FROM steps WHERE status = 'done' AND tool = 'adapter' AND json_extract(args, '$.method') = 'make_short' AND json_extract(data, '$.mode') = 'clip' AND finished_at >= ?", since(7));
         const clips = n("SELECT COALESCE(SUM(json_extract(data, '$.clips')), 0) n FROM steps WHERE status = 'done' AND tool = 'adapter' AND json_extract(args, '$.method') = 'make_clips' AND finished_at >= ?", since(7));
-        return { value: made + clips, mock: false, note: `${made} native shorts + ${clips} clips, last 7 days` };
+        return { value: made + fresh + clipShorts + clips, mock: false, note: `${fresh + made} with fresh visuals, ${clipShorts + clips} clipped to save credits — last 7 days` };
       }
       case 'followers_total': {
         const r = await core.adapters.get('showrunner')!.call('channels', {}, { key: 'hq', taskId: 0, agentId: null });

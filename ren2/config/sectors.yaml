@@ -8,8 +8,10 @@ sectors:
     name: Media (Showrunner)
     why: Grow our channels to monetization with content in our niches.
     agents: [media]
-    # Fill in our niches — Media makes content for these. (Needs Kevin)
-    niches: []
+    niches: [tech tips, local business stories]
+    # Shorts get fresh vertical visuals and reuse the long-form's audio + assets. When Showrunner
+    # credits would drop below this reserve, a short is cut from the long-form instead (cheaper).
+    credit_reserve: 50
     channels: [youtube, instagram, tiktok]
     goals:
       # Cadence (Kevin): a long-form video every day or so, and a few Shorts/Reels every day.

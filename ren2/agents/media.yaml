@@ -9,11 +9,12 @@ skills: [niche-video, video-script, thumbnail, channel-analytics]
 models: { plan: claude, work: claude, summarize: ollama }
 jobs:
   # A long-form video every day or so, plus a few Shorts/Reels daily:
-  # 2 clips from the long-form + 2 native shorts ≈ 4 shorts a day.
+  # 2 shorts with the long-form + 2 more during the day ≈ 4 shorts a day.
+  # Shorts get fresh vertical visuals and reuse audio + assets; clips only when credits run low.
   - id: long-form
     every: "0 10 * * *"
     project: media
-    do: Make today's long-form video for YouTube — script, video, thumbnail, cut 2 clips for Shorts/Reels, post
+    do: Make today's long-form video for YouTube plus 2 Shorts/Reels with fresh vertical visuals (reusing its audio + assets), thumbnail, post
   - id: shorts-midday
     every: "0 13 * * *"
     project: media
@@ -32,7 +33,8 @@ reports_to: telegram_digest
 auto: []
 playbook: |
   # Media playbook
-  - A long-form video most days (YouTube), cut into clips for Shorts/Reels/TikTok.
-  - A few native shorts every day, each different from the long-form.
+  - A long-form video most days (YouTube) and a few Shorts/Reels daily.
+  - Shorts get fresh visuals made for vertical; reuse the long-form's audio and assets.
+  - Cut clips from the long-form only to save Showrunner credits.
   - Hook in the first 2 seconds; one idea per video.
   - Double down on the niche/format with the best watch % and follows; drop what doesn't move.

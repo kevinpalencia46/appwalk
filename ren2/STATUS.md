@@ -4,10 +4,8 @@ _Last updated 2026-11-27 · Ren is now the head (HQ, sectors, delegation) · bui
 
 ## Needs Kevin
 
-0. **Media niches.** Add them to `config/sectors.yaml` under `media → niches`. Until then Media
-   picks the best-performing niche from analytics and says so, and Ren keeps asking. Also
-   check the sector goals and targets in that file; they're my first guess from your
-   description.
+0. **Sector goals and targets** in `config/sectors.yaml` are my first guess from your
+   description. Check them. (Media niches are set: tech tips, local business stories.)
 0. **Showrunner, Builder and Storefronts (Worklane) API routes** are the most valuable to map
    first. The live routes needed are: Showrunner video/clips/thumbnail/publish/analytics,
    Builder sweep/candidates/create_site/outreach, and Storefronts properties/summary/signups.
@@ -123,14 +121,17 @@ Everything below is optional for Ren 2 to run. Each missing item shows as
   resume agents. Ren proposes new agents as questions; it never creates them. Without a
   planning model, Ren falls back to a rule-based plan.
 - **Desks by sector:**
-  - **Media (Showrunner).** Cadence set by Kevin: a long-form video every day or so, plus a
-    few Shorts/Reels daily.
-    - 10:00 long-form: a YouTube video of about 6–12 minutes, a thumbnail, and 2 clips cut
-      for Shorts/Reels/TikTok.
-    - 13:00 and 18:00: native shorts. That makes about 4 shorts a day.
+  - **Media (Showrunner).** Niches: tech tips and local business stories. Cadence set by
+    Kevin: a long-form video every day or so, plus a few Shorts/Reels daily.
+    - 10:00 long-form: a YouTube video of about 6–12 minutes, a thumbnail, and 2 Shorts/Reels.
+    - 13:00 and 18:00: more shorts. That makes about 4 shorts a day.
+    - Shorts get **fresh visuals made for vertical** and reuse the long-form's audio and assets.
+    - When Showrunner credits would drop below `credit_reserve` (50, set in sectors.yaml), a
+      short is cut from the long-form instead, which costs fewer credits.
     - Posting asks you separately for long-form and for shorts (`video:publish:long` and
       `video:publish:short`), so shorts can be always-allowed on their own.
-    - Scoreboard targets: 5 long-form and 21 shorts a week.
+    - Scoreboard targets: 5 long-form and 21 shorts a week. The shorts count is split into
+      fresh-visual shorts and clipped ones.
     - Monday analytics: what's working and the distance to monetization. The lesson goes
       to Ren.
   - **Scout.** Sweeps the next BC area each weekday (rotation set in sectors.yaml), rates and
