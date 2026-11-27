@@ -22,7 +22,8 @@ export function builtinPlan(core: Core, a: AgentDef, t: TaskRow): StepPlan[] | n
       return renPlan(core, t, job, o);
     case 'media':
       if (job === 'analytics-review' || /analytics|what('|’)s working/i.test(o)) return mediaAnalytics(core);
-      if (job === 'daily-batch' || /video|batch|clip|content|post/i.test(o)) return mediaBatch(core, t);
+      if (job?.startsWith('shorts') || (!job && /\b(shorts?|reels?|tiktok)\b/i.test(o) && !/long/i.test(o))) return mediaShort(core, t);
+      if (job === 'long-form' || /video|batch|clip|content|post|long/i.test(o)) return mediaLong(core, t);
       return null;
     case 'analyst':
       if (job === 'property-watch' || /propert|storefront|analy[sz]e|worklane|book|shop/i.test(o)) return analystWatch(core, t);
@@ -140,26 +141,58 @@ function renPlan(core: Core, t: TaskRow, job: string | null, o: string): StepPla
 }
 
 // ── Media (Showrunner) ──
-function mediaBatch(core: Core, t: TaskRow): StepPlan[] {
+// Cadence (Kevin, 2026-11-27): a long-form video every day or so, plus a few Shorts/Reels daily.
+// long-form job: one long video for YouTube + clips cut from it for Shorts/Reels/TikTok.
+// shorts jobs: native shorts made on their own, a couple of times a day.
+function mediaContext(core: Core) {
   const s = core.sectors.find((x) => x.id === 'media');
-  const niches = s?.niches?.length ? s.niches.join(', ') : '';
-  const platforms = s?.channels?.length ? s.channels : ['youtube', 'instagram', 'tiktok'];
+  return {
+    niches: s?.niches?.length ? s.niches.join(', ') : '',
+    platforms: s?.channels?.length ? s.channels : ['youtube', 'instagram', 'tiktok'],
+  };
+}
+
+const nicheLine = (niches: string) => `Our niches: ${niches || 'NOT SET by Kevin yet — pick the best-performing niche from analytics and say so in "note"'}`;
+
+function mediaLong(core: Core, t: TaskRow): StepPlan[] {
+  const { niches, platforms } = mediaContext(core);
+  const shortPlatforms = platforms.join(', ');
   return [
     { tool: 'adapter', args: { adapter: 'showrunner', method: 'analytics', optional: true }, note: "What's been working" },
-    { tool: 'memory', args: { action: 'search', project: 'media', query: 'what works niche format hook', limit: 5 }, note: 'Our lessons' },
+    { tool: 'memory', args: { action: 'search', project: 'media', query: 'what works niche format hook long-form retention', limit: 5 }, note: 'Our lessons' },
     {
       tool: 'think',
       args: {
         kind: 'write',
         json: true,
-        prompt: `Task: ${t.objective}\n\nOur niches: ${niches || 'NOT SET by Kevin yet — pick the best-performing niche from analytics and say so in "note"'}\nPlatforms: ${platforms.join(', ')}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nAnalytics:\n{{step.0}}\n\nLessons:\n{{step.1}}\n\nTeam notes:\n{{inbox}}\n\nPlan ONE video for today. Return JSON only: {"niche": "...", "title": "...", "script": "30–60s script: hook in first 2s, 3 beats, call to follow", "thumbnail_idea": "...", "note": "why this, based on what's working"}`,
+        prompt: `Task: ${t.objective}\n\n${nicheLine(niches)}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nAnalytics:\n{{step.0}}\n\nLessons:\n{{step.1}}\n\nTeam notes:\n{{inbox}}\n\nPlan ONE long-form video for YouTube today (about 6–12 minutes). Return JSON only: {"niche": "...", "title": "...", "script": "full script: cold-open hook in the first 15s, 4–6 sections with a reason to keep watching between them, call to subscribe", "clip_moments": ["2–3 moments that work as standalone Shorts/Reels"], "thumbnail_idea": "...", "note": "why this, based on what's working"}`,
       },
-      note: "Pick today's video",
+      note: "Pick today's long-form video",
     },
-    { tool: 'adapter', args: { adapter: 'showrunner', method: 'queue_job', script: '{{data.2.script}}', title: '{{data.2.title}}', niche: '{{data.2.niche}}' }, note: 'Make the video' },
-    { tool: 'adapter', args: { adapter: 'showrunner', method: 'make_clips', job_id: '{{data.3.id}}', count: 3, optional: true }, note: 'Cut clips' },
+    { tool: 'adapter', args: { adapter: 'showrunner', method: 'queue_job', format: 'long', script: '{{data.2.script}}', title: '{{data.2.title}}', niche: '{{data.2.niche}}' }, note: 'Make the long-form video' },
+    { tool: 'adapter', args: { adapter: 'showrunner', method: 'make_clips', job_id: '{{data.3.id}}', count: 2, moments: '{{data.2.clip_moments}}', optional: true }, note: 'Cut Shorts/Reels from it' },
     { tool: 'adapter', args: { adapter: 'showrunner', method: 'make_thumbnail', job_id: '{{data.3.id}}', idea: '{{data.2.thumbnail_idea}}', optional: true }, note: 'Thumbnail' },
-    { tool: 'adapter', args: { adapter: 'showrunner', method: 'publish_render', job_id: '{{data.3.id}}', platform: platforms.join(', '), title: '{{data.2.title}}', preview_text: 'Title: {{data.2.title}}\nNiche: {{data.2.niche}}\n\n{{data.2.script}}', result: true }, note: 'Post (asks Kevin unless always-allowed)' },
+    { tool: 'adapter', args: { adapter: 'showrunner', method: 'publish_render', job_id: '{{data.3.id}}', format: 'long', platform: 'youtube', title: '{{data.2.title}}', preview_text: 'LONG-FORM for YouTube\nTitle: {{data.2.title}}\nNiche: {{data.2.niche}}\n\n{{data.2.script}}', result: true }, note: 'Post the long-form (asks Kevin unless always-allowed)' },
+    { tool: 'adapter', args: { adapter: 'showrunner', method: 'publish_render', job_id: '{{data.3.id}}', format: 'short', platform: shortPlatforms, clips: true, title: '{{data.2.title}}', preview_text: 'CLIPS from today\'s long-form → ' + shortPlatforms + '\nMoments: {{data.2.clip_moments}}', optional: true }, note: 'Post the clips as Shorts/Reels' },
+  ];
+}
+
+function mediaShort(core: Core, t: TaskRow): StepPlan[] {
+  const { niches, platforms } = mediaContext(core);
+  return [
+    { tool: 'adapter', args: { adapter: 'showrunner', method: 'analytics', optional: true }, note: "What's been working" },
+    { tool: 'memory', args: { action: 'search', project: 'media', query: 'what works short reel hook', limit: 5 }, note: 'Our lessons' },
+    {
+      tool: 'think',
+      args: {
+        kind: 'write',
+        json: true,
+        prompt: `Task: ${t.objective}\n\n${nicheLine(niches)}\nPlatforms: ${platforms.join(', ')}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nAnalytics:\n{{step.0}}\n\nLessons:\n{{step.1}}\n\nPlan ONE short (vertical, 20–45 seconds) — different from today's long-form. Return JSON only: {"niche": "...", "title": "...", "script": "hook in the first 2s, one idea, loop-friendly ending", "note": "why this"}`,
+      },
+      note: 'Pick the short',
+    },
+    { tool: 'adapter', args: { adapter: 'showrunner', method: 'queue_job', format: 'short', script: '{{data.2.script}}', title: '{{data.2.title}}', niche: '{{data.2.niche}}' }, note: 'Make the short' },
+    { tool: 'adapter', args: { adapter: 'showrunner', method: 'publish_render', job_id: '{{data.3.id}}', format: 'short', platform: platforms.join(', '), title: '{{data.2.title}}', preview_text: 'SHORT → ' + platforms.join(', ') + '\nTitle: {{data.2.title}}\n\n{{data.2.script}}', result: true }, note: 'Post as Short/Reel/TikTok' },
   ];
 }
 

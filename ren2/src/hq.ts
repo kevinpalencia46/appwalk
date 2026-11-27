@@ -50,8 +50,17 @@ export async function metric(core: Core, name: string): Promise<MetricValue> {
   const mock = core.settings.adapterMode === 'mock';
   try {
     switch (name) {
-      case 'videos_made_7d':
-        return { value: stepCount('queue_job', 7), mock: false, note: 'videos queued in Showrunner by Media' };
+      case 'long_videos_7d':
+        return {
+          value: n("SELECT COUNT(*) n FROM steps WHERE status = 'done' AND tool = 'adapter' AND json_extract(args, '$.method') = 'queue_job' AND json_extract(args, '$.format') = 'long' AND finished_at >= ?", since(7)),
+          mock: false,
+          note: 'long-form videos made, last 7 days',
+        };
+      case 'shorts_7d': {
+        const made = n("SELECT COUNT(*) n FROM steps WHERE status = 'done' AND tool = 'adapter' AND json_extract(args, '$.method') = 'queue_job' AND json_extract(args, '$.format') = 'short' AND finished_at >= ?", since(7));
+        const clips = n("SELECT COALESCE(SUM(json_extract(data, '$.clips')), 0) n FROM steps WHERE status = 'done' AND tool = 'adapter' AND json_extract(args, '$.method') = 'make_clips' AND finished_at >= ?", since(7));
+        return { value: made + clips, mock: false, note: `${made} native shorts + ${clips} clips, last 7 days` };
+      }
       case 'followers_total': {
         const r = await core.adapters.get('showrunner')!.call('channels', {}, { key: 'hq', taskId: 0, agentId: null });
         return { value: (r.data?.channels || []).reduce((s: number, c: any) => s + Number(c.followers || 0), 0), mock: r.mock };

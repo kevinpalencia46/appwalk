@@ -186,10 +186,10 @@ export class Showrunner extends Adapter {
     channels: { kind: 'read', description: 'our channels (YouTube, Instagram, TikTok…) with followers and totals' },
     analytics: { kind: 'read', description: 'recent videos per channel: views, retention, likes, follows gained (args: channel?)' },
     jobs: { kind: 'read', description: 'content jobs and their state' },
-    queue_job: { kind: 'action', description: 'queue a script → voice → render video job (args: script, title, niche?)' },
+    queue_job: { kind: 'action', description: 'queue a script → voice → render video job (args: script, title, format: long|short, niche?)' },
     make_clips: { kind: 'action', description: 'cut a rendered video into short clips (args: job_id)' },
     make_thumbnail: { kind: 'action', description: 'generate a thumbnail (args: job_id, idea?)' },
-    publish_render: { kind: 'action', description: 'post a video/clip to a platform (args: job_id, platform)', gate: { gate: 'publish', actionType: 'video:publish' } },
+    publish_render: { kind: 'action', description: 'post a video or its clips (args: job_id, format: long|short, platform, clips?)', gate: { gate: 'publish', actionType: 'video:publish' } },
   };
   async keyNumbers() {
     if (this.mode !== 'mock') return null;
@@ -213,10 +213,10 @@ export class Showrunner extends Adapter {
       const prev = store.get(ctx.key);
       if (prev) return mock(`job already queued: ${prev.id}`, prev);
       if (!a.script || String(a.script).startsWith('(optional step failed')) throw new Error('no script to queue');
-      const rec = { kind: 'video', id: `job-${ctx.taskId}`, title: a.title || 'untitled', niche: a.niche || null, state: 'queued (mock — no render happens)', script: String(a.script).slice(0, 4000) };
+      const rec = { kind: 'video', id: `job-${ctx.taskId}`, format: a.format === 'long' ? 'long' : 'short', title: a.title || 'untitled', niche: a.niche || null, state: 'queued (mock — no render happens)', script: String(a.script).slice(0, 4000) };
       store.put(ctx.key, rec);
       store.put(`job:${rec.id}`, rec);
-      return mock(`queued Showrunner job ${rec.id}`, rec);
+      return mock(`queued Showrunner ${rec.format === 'long' ? 'long-form' : 'short'} job ${rec.id}`, rec);
     }
     if (m === 'make_clips' || m === 'make_thumbnail') {
       const job = store.get(`job:${a.job_id}`);

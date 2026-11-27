@@ -123,9 +123,16 @@ Everything below is optional for Ren 2 to run. Each missing item shows as
   resume agents. Ren proposes new agents as questions; it never creates them. Without a
   planning model, Ren falls back to a rule-based plan.
 - **Desks by sector:**
-  - **Media (Showrunner).** Daily: pick a niche from analytics, write the script, then video,
-    3 clips and a thumbnail, then post. Posting is gated until you always-allow it. Monday:
-    analytics on what's working and the distance to monetization; the lesson goes to Ren.
+  - **Media (Showrunner).** Cadence set by Kevin: a long-form video every day or so, plus a
+    few Shorts/Reels daily.
+    - 10:00 long-form: a YouTube video of about 6–12 minutes, a thumbnail, and 2 clips cut
+      for Shorts/Reels/TikTok.
+    - 13:00 and 18:00: native shorts. That makes about 4 shorts a day.
+    - Posting asks you separately for long-form and for shorts (`video:publish:long` and
+      `video:publish:short`), so shorts can be always-allowed on their own.
+    - Scoreboard targets: 5 long-form and 21 shorts a week.
+    - Monday analytics: what's working and the distance to monetization. The lesson goes
+      to Ren.
   - **Scout.** Sweeps the next BC area each weekday (rotation set in sectors.yaml), rates and
     shortlists the candidates, saves them to memory, and tells Ren.
   - **Sites.** Worklane sign-ups first. Otherwise it builds Ren-approved demos for

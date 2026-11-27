@@ -12,7 +12,9 @@ sectors:
     niches: []
     channels: [youtube, instagram, tiktok]
     goals:
-      - { id: consistency, text: "Post consistently: 5 videos/clips a week across channels", metric: videos_made_7d, target: 5 }
+      # Cadence (Kevin): a long-form video every day or so, and a few Shorts/Reels every day.
+      - { id: long-form, text: "A long-form video every day or so (YouTube)", metric: long_videos_7d, target: 5 }
+      - { id: shorts, text: "A few Shorts/Reels every day (3+/day across channels)", metric: shorts_7d, target: 21 }
       - { id: followers, text: "Grow followers on every channel", metric: followers_total }
       - { id: learn, text: "Weekly: find what's working and what isn't, from analytics", metric: analytics_reviews_7d, target: 1 }
     # Monetization milestones — VERIFY against each platform's current rules before relying on them.

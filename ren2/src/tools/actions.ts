@@ -32,7 +32,7 @@ export const adapterTool: Tool = {
     const { adapter: _a, method: _m, optional: _o, result: _r, revision_note: _rn, ...rest } = args;
     if (spec.gate) {
       const preview = rest.preview_text || rest.preview_url || (rest.messages ? messagesPreview(rest.messages) : JSON.stringify(rest, null, 1));
-      ctx.gate({ gate: spec.gate.gate, actionType: spec.gate.actionType, summary: `${ctx.agent?.name || 'Ren'} wants to ${spec.description} (${a.name}${a.mode === 'mock' ? ', MOCK' : ''})`, preview: String(preview).slice(0, 3000) });
+      ctx.gate({ gate: spec.gate.gate, actionType: rest.format ? `${spec.gate.actionType}:${rest.format}` : spec.gate.actionType, summary: `${ctx.agent?.name || 'Ren'} wants to ${spec.description} (${a.name}${a.mode === 'mock' ? ', MOCK' : ''})`, preview: String(preview).slice(0, 3000) });
     }
     const r = await a.call(args.method, rest, { key: ctx.key, taskId: ctx.task.id, agentId: ctx.task.agent_id, signal: ctx.signal });
     return { output: r.text, data: r.data };
