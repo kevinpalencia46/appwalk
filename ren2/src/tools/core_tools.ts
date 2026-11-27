@@ -76,20 +76,36 @@ export const thinkTool: Tool = {
   },
 };
 
+export const messageTool: Tool = {
+  name: 'message',
+  description: 'Talk to teammates. args: { to: agent id | "*" (whole team), kind: request|fyi, subject, body }. A request becomes work on their desk; its result comes back to you as a reply.',
+  async status() {
+    return { status: 'ok' };
+  },
+  async run(args, ctx) {
+    const to = String(args.to || '');
+    const kind = args.kind === 'request' ? 'request' : 'fyi';
+    if (!to) throw new ToolError('message needs to');
+    if (to !== '*' && !ctx.core.agents.get(to)) throw new ToolError(`no agent ${to}`);
+    if (to === '*' && kind === 'request') throw new ToolError('requests go to one agent, not the whole team');
+    if (!args.subject) throw new ToolError('message needs a subject');
+    const from = ctx.task.agent_id || 'ren';
+    const m = ctx.core.messages.send({ from, to, kind, subject: String(args.subject), body: String(args.body ?? ''), project: args.project || ctx.task.project, originTaskId: ctx.task.id, key: ctx.key });
+    return { output: `${kind === 'request' ? 'asked' : 'told'} ${to === '*' ? 'the team' : to}: ${m.subject} (message #${m.id})`, data: { messageId: m.id } };
+  },
+};
+
+/** handoff = a request message (kept for planner/back-compat). */
 export const handoffTool: Tool = {
   name: 'handoff',
-  description: 'Hand work to another agent by creating a task. args: { agent, objective, project? }.',
+  description: 'Hand work to another agent. args: { agent, objective, project? }. Same as message kind=request.',
   async status() {
     return { status: 'ok' };
   },
   async run(args, ctx) {
     if (!args.agent || !args.objective) throw new ToolError('handoff needs agent and objective');
-    if (!ctx.core.agents.get(args.agent)) throw new ToolError(`no agent ${args.agent}`);
-    // Idempotent: one handoff per step even if the step re-runs after a restart.
-    const existing = ctx.core.tasks.findByKey(ctx.key);
-    if (existing) return { output: `already handed to ${args.agent} as task #${existing.id}`, data: { taskId: existing.id } };
-    const t = ctx.core.tasks.create({ objective: String(args.objective), agentId: args.agent, project: args.project || ctx.task.project, source: 'agent', parentId: ctx.task.id, kind: 'agent', key: ctx.key });
-    return { output: `handed to ${args.agent} as task #${t.id}`, data: { taskId: t.id } };
+    const [subject, ...rest] = String(args.objective).split('\n');
+    return messageTool.run({ to: args.agent, kind: 'request', subject, body: rest.join('\n').trim(), project: args.project }, ctx);
   },
 };
 

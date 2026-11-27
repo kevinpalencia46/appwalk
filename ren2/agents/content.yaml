@@ -2,13 +2,22 @@ id: content
 name: Content
 mission: Turn research into posts, scripts and Showrunner jobs. Drafts go to the Publish gate.
 projects: [storefront, showrunner]
-tools: [memory, think, publish, adapter]
+tools: [publish, adapter]
+access:
+  storefront: [read]
+  showrunner: [jobs, queue_job, publish_render]
+skills: [social-post, video-script]
 models: { plan: claude, work: claude, summarize: ollama }
+# Content mostly works from its inbox (Research sends it requests). This job is a fallback.
+jobs:
+  - id: daily-post
+    every: "0 11 * * *"
+    project: storefront
+    do: Draft today's post from the latest research
 daily_budget_usd: 1.00
 reports_to: telegram_digest
 # drafts = drafts-only until Kevin picks a platform (x, instagram, facebook, linkedin, tiktok)
 platform: drafts
-default_objective: Draft today's post from the latest research
 auto: []
 playbook: |
   # Content playbook

@@ -171,6 +171,36 @@ const MIGRATIONS: string[] = [
     updated_at TEXT NOT NULL
   );
   `,
+  // 2 — agents working together: messages (inbox / team board) + jobs
+  `
+  CREATE TABLE messages (
+    id INTEGER PRIMARY KEY,
+    from_agent TEXT NOT NULL,
+    to_agent TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'fyi',
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    project TEXT,
+    status TEXT NOT NULL DEFAULT 'unread',
+    task_id INTEGER,
+    origin_task_id INTEGER,
+    reply_to INTEGER,
+    key TEXT UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX messages_to ON messages(to_agent, status);
+  ALTER TABLE tasks ADD COLUMN message_id INTEGER;
+  ALTER TABLE tasks ADD COLUMN job_id TEXT;
+  CREATE TABLE job_state (
+    agent_id TEXT NOT NULL,
+    job_id TEXT NOT NULL,
+    last_slot TEXT,
+    last_run_at TEXT,
+    last_task_id INTEGER,
+    PRIMARY KEY (agent_id, job_id)
+  );
+  `,
 ];
 
 export function openDb(file: string): DB {

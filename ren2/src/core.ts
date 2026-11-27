@@ -10,7 +10,10 @@ import { Gate, Decision } from './gate/gate.js';
 import { Tasks, TaskRow } from './tasks/store.js';
 import { Runner } from './tasks/runner.js';
 import { detectProject } from './tasks/planner.js';
+import path from 'node:path';
 import { Agents } from './agents/agents.js';
+import { Messages, Message } from './agents/messages.js';
+import { Skills } from './agents/skills.js';
 import { cronMatches } from './agents/cron.js';
 import { Tools } from './tools/index.js';
 import { Adapters } from './adapters/index.js';
@@ -32,6 +35,8 @@ export class Core {
   gate: Gate;
   tasks: Tasks;
   agents: Agents;
+  messages: Messages;
+  skills: Skills;
   tools: Tools;
   adapters: Adapters;
   publishers: Record<string, Publisher>;
@@ -50,6 +55,8 @@ export class Core {
     this.memory = new Memory(this.db, settings.knowledgeDir);
     this.tasks = new Tasks(this.db);
     this.agents = new Agents(this.db, settings.agentsDir, this.tasks, { digest: settings.digestCron, retro: settings.retroCron });
+    this.messages = new Messages(this.db);
+    this.skills = new Skills(settings.skillsDir);
     this.gate = new Gate(this.db, (id) => this.agents.autoFor(id));
     this.tools = new Tools();
     this.adapters = new Adapters(settings.adapterMode, settings.workspace, opts.adapters);
@@ -67,6 +74,7 @@ export class Core {
     this.runner.start();
     this.timers.push(setInterval(() => this.memory.indexNotes(), 30_000));
     this.timers.push(setInterval(() => this.scheduleTick(), 20_000));
+    this.timers.push(setInterval(() => this.workLoop(), 2_000));
     this.timers.push(setInterval(() => this.tasks.archiveOld(), 3600_000));
     this.scheduleTick();
     this.telegram.start();
@@ -83,10 +91,90 @@ export class Core {
 
   scheduleTick(now = new Date()): TaskRow[] {
     if (this.runner.halted()) return [];
-    const created = this.agents.schedule(now);
+    const created = [...this.agents.schedule(now), ...this.workLoop()];
     for (const d of this.gate.sweepStale()) void this.telegram.send(`⏳ Reminder: decision #${d.id} has waited 48h (now in Stale). It stays pending until you answer.\n${d.summary}`);
     if (created.length) this.runner.tick();
     return created;
+  }
+
+  /**
+   * Autonomy: every running agent that isn't busy picks up the oldest request in its
+   * inbox (from a teammate or Kevin) and starts working on it. One thing at a time per desk.
+   */
+  workLoop(): TaskRow[] {
+    if (this.runner.halted()) return [];
+    const created: TaskRow[] = [];
+    for (const a of this.agents.list()) {
+      if (this.agents.status(a.id) !== 'running' || this.agents.busy(a.id)) continue;
+      const m = this.messages.pendingRequests(a.id)[0];
+      if (!m) continue;
+      const t = this.tasks.create({
+        objective: m.body ? `${m.subject}\n\n${m.body}` : m.subject,
+        agentId: a.id,
+        project: m.project ?? a.projects[0] ?? null,
+        source: m.from_agent === 'kevin' ? 'dashboard' : 'agent',
+        parentId: m.origin_task_id,
+        kind: 'agent',
+        key: `msg:${m.id}`,
+      });
+      this.db.prepare('UPDATE tasks SET message_id = ? WHERE id = ?').run(m.id, t.id);
+      this.messages.set(m.id, { status: 'in_progress', task_id: t.id });
+      created.push(this.tasks.get(t.id)!);
+    }
+    if (created.length) this.runner.tick();
+    return created;
+  }
+
+  /** Kevin drops work on an agent's desk. */
+  assign(agentId: string, subject: string, body = ''): Message {
+    if (!this.agents.get(agentId)) throw new Error(`no agent ${agentId}`);
+    const m = this.messages.send({ from: 'kevin', to: agentId, kind: 'request', subject, body });
+    this.workLoop();
+    return m;
+  }
+
+  /** Everything on one agent's desk, for the dashboard. */
+  desk(id: string) {
+    const a = this.agents.get(id);
+    if (!a) throw new Error(`no agent ${id}`);
+    const st = this.agents.state(id);
+    const current = this.db.prepare("SELECT * FROM tasks WHERE agent_id = ? AND state IN ('planning','running','verifying','queued','needs_decision') AND dismissed = 0 ORDER BY CASE state WHEN 'running' THEN 0 WHEN 'planning' THEN 0 WHEN 'verifying' THEN 0 WHEN 'needs_decision' THEN 1 ELSE 2 END, id LIMIT 5").all(id) as unknown as TaskRow[];
+    const now = current.find((t) => ['planning', 'running', 'verifying'].includes(t.state));
+    const nowSteps = now ? this.tasks.steps(now.id) : [];
+    const runningStep = nowSteps.find((s) => s.status === 'running');
+    const js = this.agents.jobState(id);
+    const recent = this.db.prepare("SELECT id, objective, state, result, error, finished_at, job_id FROM tasks WHERE agent_id = ? AND state IN ('done','failed') AND dismissed = 0 ORDER BY id DESC LIMIT 6").all(id) as any[];
+    return {
+      id: a.id,
+      name: a.name,
+      mission: a.mission,
+      status: st?.status ?? 'stopped',
+      schedulePaused: Boolean(st?.schedule_paused),
+      now: now ? { id: now.id, objective: now.objective, state: now.state, step: runningStep ? { idx: runningStep.idx, tool: runningStep.tool, note: runningStep.note } : null, steps: nowSteps.length, done: nowSteps.filter((s) => s.status === 'done').length } : null,
+      queue: current.filter((t) => t !== now).map((t) => ({ id: t.id, objective: t.objective, state: t.state })),
+      waitingOnKevin: this.gate.open().filter((d) => d.agent_id === id),
+      inbox: this.messages.inbox(id, 12),
+      outbox: this.messages.outbox(id, 8),
+      counts: this.messages.counts(id),
+      jobs: a.jobs.map((j) => {
+        const s = js.find((x) => x.job_id === j.id);
+        return { ...j, lastRunAt: s?.last_run_at ?? null, lastTaskId: s?.last_task_id ?? null, nextRun: j.every && st?.status === 'running' && !st?.schedule_paused ? this.nextRun(j.every)?.toISOString() ?? null : null };
+      }),
+      recent: recent.map((r) => ({ ...r, result: (r.result || r.error || '').slice(0, 500) })),
+      access: a.access,
+      tools: [...new Set([...a.tools])],
+      skills: a.skills.map((sid) => {
+        const sk = this.skills.get(sid);
+        return sk ? { id: sk.id, name: sk.name, description: sk.description, projects: sk.projects } : { id: sid, name: sid, description: 'missing skill file', projects: [], missing: true };
+      }),
+      projects: a.projects,
+      budget: { spent: this.budget.spent(id), cap: a.daily_budget_usd },
+      playbook: this.agents.playbook(id),
+      lastRunAt: st?.last_run_at ?? null,
+      stats: this.agentStats(id, 7),
+      auto: a.auto,
+      file: path.relative(path.dirname(this.settings.agentsDir), a.file),
+    };
   }
 
   alert(level: 'info' | 'warn' | 'error', message: string, key?: string): void {
@@ -123,6 +211,17 @@ export class Core {
   }
 
   async onTaskFinished(t: TaskRow): Promise<void> {
+    const mid = (t as any).message_id as number | null;
+    if (mid) {
+      const m = this.messages.get(mid);
+      if (m && m.status !== 'done' && m.status !== 'failed') {
+        this.messages.set(m.id, { status: t.state === 'done' ? 'done' : 'failed' });
+        const body = t.state === 'done' ? (t.result || '(done, no result)') : `Couldn't finish: ${(t.error || '').slice(0, 600)}`;
+        this.messages.send({ from: t.agent_id || 'ren', to: m.from_agent, kind: 'reply', subject: `Re: ${m.subject}`, body, project: m.project, originTaskId: t.id, replyTo: m.id, key: `reply:${m.id}` });
+        if (m.from_agent === 'kevin') await this.telegram.send(`${t.agent_id}: ${t.state === 'done' ? '✅' : '⚠'} ${m.subject}\n${body.slice(0, 900)}${this.telegram.link('agents/' + t.agent_id)}`);
+      }
+      this.workLoop();
+    }
     if (t.kind === 'chat' || t.kind === 'request' || t.source === 'telegram' || t.source === 'dashboard') {
       const text = t.state === 'done' ? t.result || '(no result)' : `⚠ Task #${t.id} failed: ${(t.error || '').slice(0, 400)}`;
       this.db.prepare('INSERT INTO chat (source, role, text, task_id, created_at) VALUES (?,?,?,?,?)').run(t.source, 'ren', text, t.id, nowIso());

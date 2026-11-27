@@ -135,7 +135,14 @@ export class Runner {
       const steps = core.tasks.steps(task.id);
       const outputs: (string | null)[] = steps.map((s) => (s.status === 'done' || s.status === 'skipped' ? s.output : null));
       const datas: any[] = steps.map((s) => (s.data ? JSON.parse(s.data) : null));
-      const vars = { objective: task.objective, project: task.project || '', task_id: String(task.id), playbook: agent ? core.agents.playbook(agent.id) : '' };
+      const vars = {
+        objective: task.objective,
+        project: task.project || '',
+        task_id: String(task.id),
+        playbook: agent ? core.agents.playbook(agent.id) : '',
+        skills: agent ? core.skills.text(agent.skills) || '(none)' : '',
+        inbox: agent ? core.messages.context(agent.id) || '(nothing new)' : '',
+      };
 
       for (const step of steps) {
         if (step.status === 'done' || step.status === 'skipped') continue;
@@ -193,6 +200,7 @@ export class Runner {
     core.tasks.stepStart(task.id, step.idx);
     try {
       if (!tool) throw new Error(`unknown tool ${step.tool}`);
+      if (agent && task.kind !== 'retro' && !core.agents.canUse(agent, step.tool)) throw new Error(`${agent.id} has no access to the ${step.tool} tool — add it under tools: in agents/${agent.id}.yaml`);
       let firstGate = true;
       const res = await tool.run(args, {
         core,

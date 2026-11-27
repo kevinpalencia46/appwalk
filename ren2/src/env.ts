@@ -28,6 +28,7 @@ export interface Settings {
   workspace: string;
   knowledgeDir: string;
   agentsDir: string;
+  skillsDir: string;
   configDir: string;
   ownerToken: string;
   telegramToken: string;
@@ -55,6 +56,7 @@ export function settings(): Settings {
     workspace: path.resolve(ROOT, e.REN2_WORKSPACE || 'workspace'),
     knowledgeDir: path.resolve(ROOT, e.REN2_KNOWLEDGE_DIR || 'knowledge'),
     agentsDir: path.resolve(ROOT, e.REN2_AGENTS_DIR || 'agents'),
+    skillsDir: path.resolve(ROOT, e.REN2_SKILLS_DIR || 'skills'),
     configDir: path.resolve(ROOT, e.REN2_CONFIG_DIR || 'config'),
     ownerToken: e.REN2_OWNER_TOKEN || '',
     telegramToken: e.TELEGRAM_BOT_TOKEN || '',

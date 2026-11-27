@@ -30,6 +30,8 @@ export interface TaskRow {
   parent_id: number | null;
   chat_id: string | null;
   key: string | null;
+  message_id: number | null;
+  job_id: string | null;
   archived: number;
   dismissed: number;
   created_at: string;

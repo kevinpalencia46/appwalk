@@ -2,12 +2,18 @@ id: outreach
 name: Outreach
 mission: Find prospects (local businesses that fit Automation Pro and the trades offers) and draft personalized messages into the Growth Engine. Sending is gated.
 projects: [bge]
-tools: [adapter, memory, think]
+tools: [adapter, http]
+access:
+  bge: [leads, prospects, create_drafts, send_drafts]
+skills: [cold-email-trades]
 models: { plan: claude, work: claude, summarize: ollama }
-schedule: "0 10 * * 2,4"
+jobs:
+  - id: trades-batch
+    every: "0 10 * * 2,4"
+    project: bge
+    do: Draft outreach to 5 local trades businesses for Automation Pro
 daily_budget_usd: 1.00
 reports_to: telegram_digest
-default_objective: Draft outreach to 5 local trades businesses for Automation Pro
 auto: []
 playbook: |
   # Outreach playbook

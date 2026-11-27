@@ -12,6 +12,16 @@ import { cronMatches, slotKey, validCron } from './cron.js';
 import type { TaskRow, StepPlan } from '../tasks/store.js';
 import type { Tasks } from '../tasks/store.js';
 
+export interface Job {
+  id: string;
+  do: string; // the objective this job works on
+  every?: string; // cron; absent = on demand only
+  project?: string;
+}
+
+/** Tools every agent has: thinking, memory, talking to teammates and to Kevin. */
+export const ALWAYS_TOOLS = ['think', 'memory', 'message', 'handoff', 'notify'];
+
 export interface AgentDef {
   id: string;
   name: string;
@@ -27,6 +37,10 @@ export interface AgentDef {
   platform?: string; // content: default publishing platform
   default_objective?: string;
   playbook?: string; // initial playbook (v1)
+  jobs: Job[];
+  /** Project access: adapter id → allowed methods ("*" = all, "read" = all read methods). */
+  access: Record<string, string[]>;
+  skills: string[];
   file: string;
 }
 
@@ -41,6 +55,15 @@ export function validateAgent(raw: any): string[] {
   if (raw.schedule && !validCron(String(raw.schedule))) errs.push(`schedule "${raw.schedule}" is not a valid 5-field cron`);
   if (raw.daily_budget_usd !== undefined && !(Number(raw.daily_budget_usd) >= 0)) errs.push('daily_budget_usd must be a number ≥ 0');
   if (raw.reports_to && !['telegram_digest', 'telegram_now'].includes(raw.reports_to)) errs.push('reports_to must be telegram_digest or telegram_now');
+  if (raw.jobs !== undefined) {
+    if (!Array.isArray(raw.jobs)) errs.push('jobs must be a list');
+    else
+      raw.jobs.forEach((j: any, i: number) => {
+        if (!j?.id || !j?.do) errs.push(`jobs[${i}] needs id and do`);
+        if (j?.every && !validCron(String(j.every))) errs.push(`jobs[${i}].every "${j.every}" is not a valid cron`);
+      });
+  }
+  if (raw.access !== undefined && (typeof raw.access !== 'object' || Array.isArray(raw.access))) errs.push('access must be a mapping of project → methods');
   return errs;
 }
 
@@ -60,8 +83,18 @@ function normalize(raw: any, file: string): AgentDef {
     platform: raw.platform,
     default_objective: raw.default_objective,
     playbook: raw.playbook,
+    jobs: normalizeJobs(raw),
+    access: Object.fromEntries(Object.entries(raw.access || {}).map(([k, v]) => [k, Array.isArray(v) ? v.map(String) : [String(v)]])),
+    skills: Array.isArray(raw.skills) ? raw.skills.map(String) : [],
     file,
   };
+}
+
+function normalizeJobs(raw: any): Job[] {
+  if (Array.isArray(raw.jobs) && raw.jobs.length) return raw.jobs.map((j: any) => ({ id: String(j.id), do: String(j.do), every: j.every ? String(j.every) : undefined, project: j.project }));
+  // Older single-schedule configs become one job.
+  if (raw.schedule || raw.default_objective) return [{ id: 'main', do: String(raw.default_objective || `Scheduled run: ${raw.mission}`), every: raw.schedule || undefined }];
+  return [];
 }
 
 export class Agents {
@@ -200,16 +233,20 @@ export class Agents {
   }
 
   // ── scheduler ──
-  /** Called every tick. Creates at most one task per agent per matching minute. */
+  /** Called every tick. Each job fires at most once per matching minute. */
   schedule(now = new Date()): TaskRow[] {
     const created: TaskRow[] = [];
     const slot = slotKey(now);
     for (const a of this.list()) {
       const st = this.state(a.id);
-      if (!a.schedule || !st || st.status !== 'running' || st.schedule_paused) continue;
-      if (st.last_slot === slot || !cronMatches(a.schedule, now)) continue;
-      this.db.prepare('UPDATE agents_state SET last_slot = ? WHERE id = ?').run(slot, a.id);
-      created.push(this.tasks.create({ objective: a.default_objective || `Scheduled run: ${a.mission}`, agentId: a.id, project: a.projects[0] ?? null, source: 'schedule', kind: 'agent', key: `sched:${a.id}:${slot}` }));
+      if (!st || st.status !== 'running' || st.schedule_paused) continue;
+      for (const j of a.jobs) {
+        if (!j.every || !cronMatches(j.every, now)) continue;
+        const js = this.db.prepare('SELECT last_slot FROM job_state WHERE agent_id = ? AND job_id = ?').get(a.id, j.id) as { last_slot: string } | undefined;
+        if (js?.last_slot === slot) continue;
+        const t = this.runJob(a, j, 'schedule', slot);
+        if (t) created.push(t);
+      }
     }
     const g = (name: string, cron: string, make: () => TaskRow[]) => {
       const k = `global:${name}`;
@@ -227,9 +264,44 @@ export class Agents {
     return created;
   }
 
+  /** Start one job now (schedule or "run now"). Returns the task, or null if that job slot already ran. */
+  runJob(a: AgentDef, j: Job, source: 'schedule' | 'dashboard', slot = slotKey(new Date())): TaskRow | null {
+    const key = `job:${a.id}:${j.id}:${slot}${source === 'dashboard' ? ':' + Date.now() : ''}`;
+    if (this.tasks.findByKey(key)) return null;
+    this.db
+      .prepare('INSERT INTO job_state (agent_id, job_id, last_slot, last_run_at) VALUES (?,?,?,?) ON CONFLICT(agent_id, job_id) DO UPDATE SET last_slot = excluded.last_slot, last_run_at = excluded.last_run_at')
+      .run(a.id, j.id, source === 'schedule' ? slot : null, nowIso());
+    this.db.prepare('UPDATE agents_state SET last_slot = ? WHERE id = ?').run(slot, a.id);
+    const t = this.tasks.create({ objective: j.do, agentId: a.id, project: j.project ?? a.projects[0] ?? null, source, kind: 'agent', key });
+    this.db.prepare('UPDATE tasks SET job_id = ? WHERE id = ?').run(j.id, t.id);
+    this.db.prepare('UPDATE job_state SET last_task_id = ? WHERE agent_id = ? AND job_id = ?').run(t.id, a.id, j.id);
+    return this.tasks.get(t.id)!;
+  }
+
+  jobState(agentId: string) {
+    return this.db.prepare('SELECT * FROM job_state WHERE agent_id = ?').all(agentId) as { job_id: string; last_run_at: string | null; last_task_id: number | null }[];
+  }
+
+  /** Busy = this agent already has a task in flight (one thing at a time per desk). */
+  busy(agentId: string): boolean {
+    return Boolean(this.db.prepare("SELECT 1 FROM tasks WHERE agent_id = ? AND state IN ('queued','planning','running','verifying') AND archived = 0 AND dismissed = 0 LIMIT 1").get(agentId));
+  }
+
+  canUse(a: AgentDef, tool: string): boolean {
+    return ALWAYS_TOOLS.includes(tool) || a.tools.includes(tool) || (tool === 'system' && a.id === 'ops');
+  }
+
+  /** Project access check for adapter methods. */
+  canCall(a: AgentDef, adapter: string, method: string, kind: 'read' | 'action'): boolean {
+    const allowed = a.access[adapter];
+    if (!allowed) return false;
+    return allowed.includes('*') || allowed.includes(method) || (kind === 'read' && allowed.includes('read'));
+  }
+
   /** Built-in deterministic plans. Null = let the model plan it. */
   planFor(a: AgentDef, task: TaskRow): StepPlan[] | null {
     if (task.kind === 'retro') return retroPlan(a);
+    if ((task as any).message_id && a.id !== 'content' && a.id !== 'sites' && a.id !== 'outreach') return null; // ad-hoc requests: plan from the ask
     const builtin = BUILTIN[a.id];
     if (!builtin) return null;
     return builtin(a, task);
@@ -284,13 +356,14 @@ const BUILTIN: Record<string, (a: AgentDef, t: TaskRow) => StepPlan[] | null> = 
         tool: 'think',
         args: {
           kind: 'research',
-          prompt: `${t.objective}\n\nPlaybook:\n{{playbook}}\n\nStorefront summary:\n{{step.0}}\n\nPages/offer:\n{{step.1}}\n\nPrior findings:\n{{step.2}}\n\n${srcRefs ? `Competitor/market pages:\n${srcRefs}\n\n` : ''}Numbers labelled MOCK are fixtures, not real — say so if you rely on them.\nWhy is the store getting visits but no orders? Write:\n## Findings (3–5 bullets, each tied to evidence above)\n## Proposed changes (numbered, concrete, smallest first: what to change, where, expected effect)\n## For Content (one line: the angle Content should post about)`,
+          prompt: `${t.objective}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nTeam notes:\n{{inbox}}\n\nStorefront summary:\n{{step.0}}\n\nPages/offer:\n{{step.1}}\n\nPrior findings:\n{{step.2}}\n\n${srcRefs ? `Competitor/market pages:\n${srcRefs}\n\n` : ''}Numbers labelled MOCK are fixtures, not real — say so if you rely on them.\nWhy is the store getting visits but no orders? Write:\n## Findings (3–5 bullets, each tied to evidence above)\n## Proposed changes (numbered, concrete, smallest first: what to change, where, expected effect)\n## For Content (one line: the angle Content should post about)`,
           result: true,
         },
         note: 'Analyse',
       },
       { tool: 'memory', args: { action: 'add', kind: 'lesson', project, title: `Research ${today()}: ${project} scan`, body: `{{step.${n}}}` }, note: 'Save findings' },
-      { tool: 'handoff', args: { agent: 'content', project, objective: `Draft posts from research ${today()} (${project}). Findings:\n{{step.${n}}}` }, note: 'Hand to Content' },
+      { tool: 'message', args: { to: 'content', kind: 'request', project, subject: `Draft posts from research ${today()} (${project})`, body: `{{step.${n}}}` }, note: 'Ask Content for posts' },
+      { tool: 'message', args: { to: '*', kind: 'fyi', project, subject: `Research ${today()}: ${project} findings`, body: `{{step.${n}}}` }, note: 'Share with the team' },
     );
     return steps;
   },
@@ -304,7 +377,7 @@ const BUILTIN: Record<string, (a: AgentDef, t: TaskRow) => StepPlan[] | null> = 
         tool: 'think',
         args: {
           kind: 'write',
-          prompt: `Task: ${t.objective}\n\nPlaybook:\n{{playbook}}\n\nResearch:\n{{step.0}}\n\nWrite ONE social post for ${project} (under 260 characters, plain text, no hashtags spam, no invented numbers or claims). Return only the post text.`,
+          prompt: `Task: ${t.objective}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nTeam notes:\n{{inbox}}\n\nResearch:\n{{step.0}}\n\nWrite ONE social post for ${project} (under 260 characters, plain text, no hashtags spam, no invented numbers or claims). Return only the post text.`,
         },
         note: 'Draft post',
       },
@@ -325,12 +398,13 @@ const BUILTIN: Record<string, (a: AgentDef, t: TaskRow) => StepPlan[] | null> = 
       tool: 'think',
       args: {
         kind: 'write',
-        prompt: `Kevin asked: ${t.objective}\n\nContext:\n{{step.0}}\n\nPlaybook:\n{{playbook}}\n\nWrite a landing page spec as JSON only: {"name": short-slug, "title": ..., "headline": ..., "subhead": ..., "sections": [{"heading": ..., "body": ...}] (3 sections), "cta": {"label": ..., "href": "#contact"}}. No invented testimonials, prices or stats.`,
+        prompt: `Request: ${t.objective}\n\nContext:\n{{step.0}}\n\nTeam notes:\n{{inbox}}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nWrite a landing page spec as JSON only: {"name": short-slug, "title": ..., "headline": ..., "subhead": ..., "sections": [{"heading": ..., "body": ...}] (3 sections), "cta": {"label": ..., "href": "#contact"}}. No invented testimonials, prices or stats.`,
       },
       note: 'Page spec',
     },
     { tool: 'adapter', args: { adapter: 'builder', method: 'create_site', spec: '{{step.1}}' }, note: 'Build preview' },
-    { tool: 'notify', args: { text: `Preview ready for: ${t.objective.slice(0, 80)}`, link: '{{data.2.preview_url}}' }, note: 'Send preview link' },
+    { tool: 'notify', args: { text: `Preview ready for: ${t.objective.split('\n')[0].slice(0, 80)}`, link: '{{data.2.preview_url}}' }, note: 'Send preview link' },
+    { tool: 'message', args: { to: '*', kind: 'fyi', subject: `Preview page: ${t.objective.split('\n')[0].slice(0, 80)}`, body: '{{data.2.preview_url}}' }, note: 'Tell the team' },
     { tool: 'adapter', args: { adapter: 'builder', method: 'publish_site', site_id: '{{data.2.id}}', preview_url: '{{data.2.preview_url}}', result: true }, note: 'Go live (gated)' },
   ],
 
@@ -341,7 +415,7 @@ const BUILTIN: Record<string, (a: AgentDef, t: TaskRow) => StepPlan[] | null> = 
       tool: 'think',
       args: {
         kind: 'write',
-        prompt: `Task: ${t.objective}\n\nPlaybook:\n{{playbook}}\n\nOffer/context:\n{{step.1}}\n\nProspects:\n{{step.0}}\n\nDraft one short, personal, plain-text email per prospect (≤ 90 words, one concrete reason it fits them, one soft ask, no fake claims). Return JSON only: [{"prospect_id": ..., "subject": ..., "body": ...}].`,
+        prompt: `Task: ${t.objective}\n\nPlaybook:\n{{playbook}}\n\nSkills:\n{{skills}}\n\nTeam notes:\n{{inbox}}\n\nOffer/context:\n{{step.1}}\n\nProspects:\n{{step.0}}\n\nDraft one short, personal, plain-text email per prospect (≤ 90 words, one concrete reason it fits them, one soft ask, no fake claims). Return JSON only: [{"prospect_id": ..., "subject": ..., "body": ...}].`,
       },
       note: 'Draft messages',
     },

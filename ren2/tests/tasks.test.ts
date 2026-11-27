@@ -176,7 +176,7 @@ test('same failure 3×: one recurring item, schedule paused, notified once; retr
   const events: any[] = [];
   const on = (e: any) => e.type === 'failure.recurring' && events.push(e.data);
   bus.on('event', on);
-  const plan = [{ tool: 'shell', args: { cmd: 'exit 3' } }];
+  const plan = [{ tool: 'system', args: { action: 'no-such-action' } }];
   const ids: number[] = [];
   for (let i = 0; i < 4; i++) {
     const t = core.tasks.create({ objective: 'Ops check', agentId: 'ops', kind: 'agent', plan });
@@ -188,7 +188,7 @@ test('same failure 3×: one recurring item, schedule paused, notified once; retr
   const items = core.tasks.list().filter((t) => t.kind === 'diagnosis');
   assert.equal(items.length, 1);
   await runToEnd(core, items[0].id);
-  core.tasks.updateStepArgs(ids[2], 0, { cmd: 'echo fixed' });
+  core.tasks.updateStepArgs(ids[2], 0, { action: 'echo', text: 'fixed' });
   core.runner.retry(items[0].id);
   assert.equal((await runToEnd(core, ids[2], ['done'])).state, 'done');
   assert.equal(core.agents.state('ops')!.schedule_paused, 0);

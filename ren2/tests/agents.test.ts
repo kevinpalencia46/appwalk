@@ -28,6 +28,7 @@ test('scheduler fires once per matching minute, respects pause and schedule_paus
   const { core } = makeCore();
   const at6 = new Date(2026, 10, 27, 6, 0);
   const first = core.agents.schedule(at6).map((t) => t.agent_id);
+  assert.ok(core.tasks.list().some((t) => t.job_id === 'storefront-scan'), 'job id recorded');
   assert.ok(first.includes('research'));
   assert.ok(first.includes('ops'));
   assert.equal(core.agents.schedule(at6).length, 0, 'same slot never fires twice');
@@ -60,13 +61,17 @@ test('ops agent: health + adapters + queue → report, no model needed', async (
 test('research agent: storefront scan → memory lesson → handoff to content', async () => {
   const { core, providers } = makeCore();
   (providers.anthropic as any).reply = (i: any) => (i.prompt.includes('Why is the store') ? '## Findings\n- 86% mobile, account required at checkout (MOCK data)\n## Proposed changes\n1. Guest checkout\n## For Content\nShow shipping upfront' : 'x');
-  const t = core.tasks.create({ objective: core.agents.get('research')!.default_objective!, agentId: 'research', kind: 'agent', project: 'storefront', source: 'schedule' });
+  const t = core.tasks.create({ objective: core.agents.get('research')!.jobs[0].do, agentId: 'research', kind: 'agent', project: 'storefront', source: 'schedule' });
   const done = await runToEnd(core, t.id);
   assert.equal(done.state, 'done', done.error || '');
   assert.match(done.result!, /Guest checkout/);
   assert.ok(core.memory.search('guest checkout', { project: 'storefront' }).some((m) => m.kind === 'lesson'));
+  const asked = core.messages.outbox('research').find((m) => m.kind === 'request');
+  assert.equal(asked?.to_agent, 'content');
+  assert.ok(core.messages.outbox('research').some((m) => m.to_agent === '*' && m.kind === 'fyi'), 'shared with the team');
+  core.workLoop();
   const handoff = core.tasks.list().find((x) => x.parent_id === t.id);
-  assert.equal(handoff?.agent_id, 'content');
+  assert.equal(handoff?.agent_id, 'content', 'content picked the request up by itself');
   // The storefront step really used MOCK fixture numbers
   assert.match(core.tasks.steps(t.id)[0].output!, /\[MOCK\].*1012 visits/);
   await core.stop();

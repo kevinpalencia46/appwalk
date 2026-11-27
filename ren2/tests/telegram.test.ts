@@ -98,7 +98,7 @@ test('telegram: decision buttons — approve, edit by reply, always allow; secre
   await runToEnd(core, t.id, ['done']);
 
   // Buttons from another chat are ignored
-  const t2 = core.tasks.create({ objective: 'post2', agentId: 'sites', kind: 'agent', plan });
+  const t2 = core.tasks.create({ objective: 'post2', plan });
   await runToEnd(core, t2.id);
   const d3 = core.gate.open()[0];
   await core.telegram.handle({ update_id: 3, callback_query: { id: 'q3', data: `d:${d3.id}:a`, message: { message_id: 7, chat: { id: 1 } } } });

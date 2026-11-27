@@ -25,6 +25,9 @@ export const adapterTool: Tool = {
     if (!a) throw new ToolError(`no adapter ${args.adapter}`);
     const spec = a.methods[args.method];
     if (!spec) throw new ToolError(`${a.id} has no method ${args.method} (has: ${Object.keys(a.methods).join(', ')})`);
+    if (ctx.agent && !ctx.core.agents.canCall(ctx.agent, a.id, args.method, spec.kind)) {
+      throw new ToolError(`${ctx.agent.id} has no access to ${a.name}.${args.method} — add it under access: ${a.id}: in agents/${ctx.agent.id}.yaml`);
+    }
     const { adapter: _a, method: _m, optional: _o, result: _r, ...rest } = args;
     if (spec.gate) {
       const preview = rest.preview_url || (rest.messages ? messagesPreview(rest.messages) : JSON.stringify(rest, null, 1));

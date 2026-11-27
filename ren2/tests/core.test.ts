@@ -16,8 +16,8 @@ import { fake, off, tmpdir } from './helpers.js';
 test('migrations are idempotent and kv works', () => {
   const dir = tmpdir();
   const db = openDb(path.join(dir, 'a.db'));
-  assert.equal(migrate(db), 1);
-  assert.equal(migrate(db), 1);
+  assert.equal(migrate(db), 2);
+  assert.equal(migrate(db), 2);
   kvSet(db, 'x', '1');
   kvSet(db, 'x', '2');
   assert.equal(kvGet(db, 'x'), '2');

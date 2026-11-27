@@ -123,7 +123,7 @@ function connectSSE() {
   };
   es.addEventListener('model.start', (e) => onModel(e, true));
   es.addEventListener('model', (e) => onModel(e, false));
-  for (const t of ['task', 'step', 'decision.new', 'decision.resolved', 'chat', 'halted', 'budget', 'alert', 'agent', 'memory', 'playbook', 'auto', 'draft', 'failure.recurring']) es.addEventListener(t, soon);
+  for (const t of ['task', 'step', 'decision.new', 'decision.resolved', 'chat', 'halted', 'budget', 'alert', 'agent', 'memory', 'playbook', 'auto', 'draft', 'failure.recurring', 'message']) es.addEventListener(t, soon);
 }
 
 // ── Home ──
@@ -257,74 +257,11 @@ async function taskDetail(id) {
   if ($('#dismiss')) $('#dismiss').onclick = () => act(async () => (await post(`/api/tasks/${id}/dismiss`), (location.hash = 'work')), 'Dismissed');
 }
 
-// ── Agents ──
+// ── Agents: work desks (public/desks.js) ──
+let agentsPage = null;
 async function agents(id) {
-  const list = await api('/api/agents');
-  if (id === 'new') return agentForm();
-  view.innerHTML = `<div class="spread" style="margin-bottom:12px"><span class="muted">${list.length} agents</span><a class="btn" href="#agents/new" style="display:flex;align-items:center;text-decoration:none">+ New agent</a></div>
-  <div class="grid">${list.map((a) => {
-    const s = a.state?.status || 'stopped';
-    return `<div class="card" data-agent="${esc(a.id)}">
-      <div class="spread"><h3>${esc(a.name)}</h3>${tag(s, 'agent')}${a.state?.schedule_paused ? tag('paused', '') + '<span class="muted">schedule</span>' : ''}</div>
-      <p class="muted" style="margin:4px 0 10px">${esc(a.mission)}</p>
-      <dl class="kv"><dt>Schedule</dt><dd>${esc(a.schedule || 'on demand')}${a.nextRun ? ` · next ${new Date(a.nextRun).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}</dd>
-      <dt>Last run</dt><dd>${ago(a.state?.last_run_at)}${a.state?.last_task_id ? ` · <a href="#work/${a.state.last_task_id}">#${a.state.last_task_id}</a>` : ''}</dd>
-      <dt>7 days</dt><dd>${a.stats.done} done · ${a.stats.failed} failed · ${a.stats.approved}/${a.stats.approved + a.stats.rejected} approved</dd>
-      <dt>Budget</dt><dd>${usd(a.spentToday)} of ${usd(a.daily_budget_usd)} today</dd>
-      <dt>Always allow</dt><dd>${a.auto.length ? a.auto.map(esc).join(', ') : '—'}</dd></dl>
-      ${a.lastResult ? `<details><summary class="muted">last result</summary><div class="pre">${esc(a.lastResult)}</div></details>` : ''}
-      <details><summary class="muted">playbook</summary><div class="pre">${esc(a.playbook)}</div><button class="ghost" data-pb="${esc(a.id)}" style="margin-top:8px">Versions…</button><div data-pbv="${esc(a.id)}"></div></details>
-      <div class="row" style="margin-top:12px">
-        <button class="primary" data-run>Run now</button>
-        ${s !== 'running' ? '<button data-act="start">Start</button>' : '<button data-act="pause">Pause</button>'}
-        ${s !== 'stopped' ? '<button class="danger" data-act="stop">Stop</button>' : ''}
-        <button class="ghost" data-edit>Edit config</button>
-      </div>
-      <div data-editor></div>
-    </div>`;
-  }).join('')}</div>`;
-  view.querySelectorAll('[data-agent]').forEach((card) => {
-    const id = card.dataset.agent;
-    card.querySelectorAll('[data-act]').forEach((b) => (b.onclick = () => act(() => post(`/api/agents/${id}/${b.dataset.act}`), `${id}: ${b.dataset.act}`)));
-    card.querySelector('[data-run]').onclick = () => act(() => post(`/api/agents/${id}/run`), `${id} queued`);
-    card.querySelector('[data-edit]').onclick = async () => {
-      const { yaml } = await api(`/api/agents/${id}/config`);
-      const ed = card.querySelector('[data-editor]');
-      ed.innerHTML = `<div class="form" style="margin-top:12px"><textarea id="cfg-${esc(id)}" data-sticky="1" style="min-height:280px;font-family:ui-monospace,monospace;font-size:13px">${esc(yaml)}</textarea><div class="row"><button class="primary" data-save>Save</button><button class="ghost" data-cancel>Cancel</button></div></div>`;
-      ed.querySelector('[data-save]').onclick = () => act(() => api(`/api/agents/${id}/config`, { method: 'PUT', body: { yaml: ed.querySelector('textarea').value } }), 'Saved');
-      ed.querySelector('[data-cancel]').onclick = () => (ed.innerHTML = '');
-    };
-    const pb = card.querySelector('[data-pb]');
-    pb.onclick = async () => {
-      const vs = await api(`/api/agents/${id}/playbook`);
-      card.querySelector('[data-pbv]').innerHTML = `<div class="list">${vs.map((v) => `<div class="item"><div class="spread"><b>v${v.version}</b>${v.active ? tag('active', 's-ok') : `<button data-revert="${v.version}">Revert to v${v.version}</button>`}</div><div class="muted">${esc(v.reason || '')} · ${ago(v.created_at)}</div></div>`).join('')}</div>`;
-      card.querySelectorAll('[data-revert]').forEach((b) => (b.onclick = () => act(() => post(`/api/agents/${id}/playbook/revert`, { version: Number(b.dataset.revert) }), `Reverted to v${b.dataset.revert}`)));
-    };
-  });
-}
-
-function agentForm() {
-  view.innerHTML = `<div class="card" style="max-width:720px"><a href="#agents">← Agents</a><h3 style="margin-top:12px">New agent</h3>
-  <form class="form" id="af">
-    <label>Id (lowercase, dashes)<input name="id" required pattern="[a-z][a-z0-9-]{1,31}"></label>
-    <label>Name<input name="name" required></label>
-    <label>Mission<textarea name="mission" required></textarea></label>
-    <label>Projects (comma separated)<input name="projects" placeholder="storefront, builder"></label>
-    <label>Tools (comma separated)<input name="tools" value="memory, think, http"></label>
-    <label>Schedule (cron, optional)<input name="schedule" placeholder="0 9 * * *"></label>
-    <label>Daily budget (USD)<input name="daily_budget_usd" type="number" step="0.05" min="0" value="0.5"></label>
-    <label>Reports to<select name="reports_to"><option value="telegram_digest">Daily digest</option><option value="telegram_now">Telegram now</option></select></label>
-    <button class="primary">Create agent</button>
-  </form></div>`;
-  $('#af').onsubmit = (e) => {
-    e.preventDefault();
-    const f = Object.fromEntries(new FormData(e.target));
-    const split = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean);
-    act(async () => {
-      await post('/api/agents', { ...f, projects: split(f.projects), tools: split(f.tools), daily_budget_usd: Number(f.daily_budget_usd) });
-      location.hash = 'agents';
-    }, 'Agent created');
-  };
+  agentsPage ??= (await import('/desks.js')).makeDesks({ $, view, esc, ago, usd, tag, api, post, act, decisionHtml, wireDecisions });
+  return agentsPage(id);
 }
 
 // ── Projects ──

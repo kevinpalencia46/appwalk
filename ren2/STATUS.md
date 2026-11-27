@@ -1,6 +1,6 @@
 # Ren 2 — STATUS
 
-_Last updated 2026-11-27 · build: M1–M4 done in the cloud, M5 (Pi deploy) scripted and tested on x86 only._
+_Last updated 2026-11-27 · build: M1–M4 done in the cloud, M5 (Pi deploy) scripted and tested on x86 only, plus work desks (agents working on their own and together)._
 
 ## Needs Kevin
 
@@ -85,9 +85,46 @@ Everything below is optional for Ren 2 to run. Each missing item shows as
   MOCK), Memory (search/browse/edit, decisions, drafts), System (health, models, tools,
   Telegram, publishers, budget, always-allow list, kill switch). Laid out for iPad; on a phone
   there is no horizontal scroll.
-- **Tests:** `npm test` passes 46 `node:test` tests across 6 files, covering every endpoint.
+- **Tests:** `npm test` passes 53 `node:test` tests across 7 files, covering every endpoint.
   `npm run smoke` runs the real process end to end: the M1 demo over a fake Telegram, a
   `kill -9` resume, and the kill switch.
+
+## Work desks (added 2026-11-27, at Kevin's request)
+
+- **Desks page** (`#agents`, labelled "Desks"): one card per agent. Each shows a status lamp
+  (working, waiting on you, idle, paused), what it's working on right now with step
+  progress, inbox count, decisions waiting on you, jobs, today's spend, its last output, and
+  chips for its project access and skills. Below the cards is the **Team channel**: every
+  request, FYI and reply between agents.
+- **Full desk** (`#agents/<id>`) shows:
+  - what it's on now and what's next;
+  - a "Give it work" box that puts a request in its inbox;
+  - its inbox and sent messages, and its recent output;
+  - its jobs, each with **Run now**;
+  - its project access, tools and skills (skills can be edited in place);
+  - its playbook versions with revert, and its numbers;
+  - start, pause and stop buttons, and a config editor.
+- **Autonomy:** each agent has **jobs** (`jobs:` in its YAML, with an optional cron) and an
+  **inbox**. A work loop runs every 2 s. Any running agent that isn't busy picks up the oldest
+  request in its inbox, whether it came from a teammate or from Kevin. Each desk works on one
+  thing at a time.
+- **Working together:** the `message` tool sends a `request` (it becomes work on the other
+  agent's desk) or an `fyi` (to one agent, or to the whole team as `*`). When a request
+  finishes, a **reply** with the result goes back to whoever asked, automatically, and Kevin
+  also gets it on Telegram. Recent FYIs and replies go into each agent's prompts as "Team
+  notes". Out of the box:
+  - Research asks Content for posts and posts its findings to the team.
+  - Sites posts its preview links to the team.
+  - Verified live: Research → Content request → Content works it → reply back to Research.
+- **Project access:** `access:` in each YAML maps a project to the methods it may call:
+  `read` (all read methods), `*` (everything), or a list of named methods. The adapter tool
+  enforces this. `tools:` is also enforced. Every agent always has think, memory, message,
+  handoff and notify. This scopes what each agent can reach. It is not an approval tier: the
+  four gates are still the only things that ask Kevin.
+- **Skills:** `skills/*.md` hold project know-how (Storefront funnel diagnosis, competitor scan,
+  social post, video script, landing page, cold email for trades, Pi health). Each agent lists
+  the skills it uses, and their text goes into its planning and writing prompts.
+- **Tests:** 53 tests pass (7 new in `tests/desks.test.ts`), and the smoke test passes.
 
 ## Stubbed / mock (honest)
 

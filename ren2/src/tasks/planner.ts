@@ -62,11 +62,15 @@ export async function planTask(core: Core, task: TaskRow, agent: AgentDef | null
   if (QUESTION.test(task.objective.trim()) || task.kind === 'chat-direct') return directPlan(task.objective, project);
 
   const ctx = core.memory.contextFor(task.objective, project);
-  const tools = core.tools.list().filter((t) => !['handoff'].includes(t.name) || agent);
+  const tools = core.tools.list().filter((t) => (agent ? core.agents.canUse(agent, t.name) : !['handoff', 'message'].includes(t.name)));
+  const access = agent
+    ? Object.entries(agent.access).map(([p, m]) => `- ${p}: ${m.join(', ')} (methods: ${Object.keys(core.adapters.get(p)?.methods || {}).join(', ')})`).join('\n') || '- none'
+    : '';
+  const team = agent ? core.agents.list().filter((x) => x.id !== agent.id).map((x) => `- ${x.id}: ${x.mission}`).join('\n') : '';
   const catalog = tools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
   const prompt = `Objective: ${task.objective}
 Project: ${project || 'unknown'}
-${agent ? `Agent: ${agent.name} — ${agent.mission}\nPlaybook:\n${core.agents.playbook(agent.id).slice(0, 1200)}\n` : ''}
+${agent ? `Agent: ${agent.name} — ${agent.mission}\nPlaybook:\n${core.agents.playbook(agent.id).slice(0, 1200)}\n\nSkills:\n${core.skills.text(agent.skills, 2000) || '(none)'}\n\nProject access (adapter tool):\n${access}\n\nTeammates (use the message tool: kind "request" to ask for work, "fyi" to share):\n${team}\n\nTeam notes:\n${core.messages.context(agent.id) || '(nothing new)'}\n` : ''}
 Relevant memory:
 ${ctx.text || '(none)'}
 

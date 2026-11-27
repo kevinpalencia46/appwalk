@@ -103,14 +103,18 @@ function routes(): [string, RegExp, Handler][] {
     ['POST', '/api/agents', (q, c) => {
       const b = q.body || {};
       if (typeof b.yaml === 'string') return c.agents.writeConfig(null, b.yaml);
+      const list = (v: any) => (Array.isArray(v) ? v : String(v || '').split(',')).map((x: any) => String(x).trim()).filter(Boolean);
+      const access = list(b.access).map((p: string) => `  ${p}: [read]`);
       const yaml = [
         `id: ${b.id}`,
         `name: ${JSON.stringify(b.name || '')}`,
         `mission: ${JSON.stringify(b.mission || '')}`,
-        `projects: [${(b.projects || []).join(', ')}]`,
-        `tools: [${(b.tools || ['memory', 'think', 'http']).join(', ')}]`,
+        `projects: [${list(b.projects).join(', ')}]`,
+        `tools: [${list(b.tools).join(', ')}]`,
+        access.length ? `access:\n${access.join('\n')}` : 'access: {}',
+        `skills: [${list(b.skills).join(', ')}]`,
         `models: { plan: claude, work: deepseek, summarize: ollama }`,
-        b.schedule ? `schedule: "${b.schedule}"` : '# schedule: "0 9 * * *"',
+        b.job ? `jobs:\n  - id: main\n    do: ${JSON.stringify(String(b.job))}${b.schedule ? `\n    every: "${b.schedule}"` : ''}` : 'jobs: []',
         `daily_budget_usd: ${Number(b.daily_budget_usd ?? 0.5)}`,
         `reports_to: ${b.reports_to || 'telegram_digest'}`,
         `auto: []`,
@@ -119,6 +123,34 @@ function routes(): [string, RegExp, Handler][] {
     }],
     ['GET', '/api/agents/:id/config', (q, c) => ({ yaml: c.agents.rawConfig(q.params.id) })],
     ['PUT', '/api/agents/:id/config', (q, c) => c.agents.writeConfig(q.params.id, String(q.body?.yaml || ''))],
+    ['GET', '/api/desks', (_q, c) => ({ desks: c.agents.list().map((a) => c.desk(a.id)), board: c.messages.board(30) })],
+    ['GET', '/api/desks/:id', (q, c) => {
+      if (!c.agents.get(q.params.id)) throw notFound(`no agent ${q.params.id}`);
+      return c.desk(q.params.id);
+    }],
+    ['POST', '/api/agents/:id/assign', (q, c) => {
+      const subject = String(q.body?.subject || '').trim();
+      if (!subject) throw bad('subject required');
+      if (!c.agents.get(q.params.id)) throw notFound(`no agent ${q.params.id}`);
+      return c.assign(q.params.id, subject, String(q.body?.body || ''));
+    }],
+    ['POST', '/api/agents/:id/jobs/:job/run', (q, c) => {
+      const a = c.agents.get(q.params.id);
+      const j = a?.jobs.find((x) => x.id === q.params.job);
+      if (!a || !j) throw notFound('no such agent/job');
+      const t = c.agents.runJob(a, j, 'dashboard');
+      c.runner.tick();
+      return t;
+    }],
+    ['POST', '/api/agents/:id/inbox/read', (q, c) => (c.messages.markRead(q.params.id), c.messages.counts(q.params.id))],
+    ['GET', '/api/messages', (q, c) => (q.query.get('agent') ? c.messages.inbox(q.query.get('agent')!, 50) : c.messages.board(Number(q.query.get('limit') || 50)))],
+    ['GET', '/api/skills', (_q, c) => c.skills.list().map((s) => ({ ...s, file: path.relative(ROOT, s.file), agents: c.agents.list().filter((a) => a.skills.includes(s.id)).map((a) => a.id) }))],
+    ['GET', '/api/skills/:id', (q, c) => c.skills.get(q.params.id) ?? (() => { throw notFound(); })()],
+    ['PUT', '/api/skills/:id', (q, c) => {
+      const body = String(q.body?.body || '');
+      if (!body.trim()) throw bad('body required');
+      return c.skills.save(q.params.id, body);
+    }],
     ['POST', '/api/agents/:id/:action', (q, c) => {
       const id = q.params.id;
       if (!c.agents.get(id)) throw notFound(`no agent ${id}`);
@@ -128,6 +160,11 @@ function routes(): [string, RegExp, Handler][] {
       else if (a === 'stop') {
         c.agents.setStatus(id, 'stopped');
         for (const [tid, ac] of c.runner.active) if (c.tasks.get(tid)?.agent_id === id) ac.abort(new Error('agent stopped'));
+      } else if (a === 'run' && !q.body?.objective && c.agents.get(id)!.jobs.length) {
+        const def = c.agents.get(id)!;
+        const t = c.agents.runJob(def, def.jobs[0], 'dashboard');
+        c.runner.tick();
+        return t;
       } else if (a === 'run') {
         const def = c.agents.get(id)!;
         const t = c.tasks.create({ objective: String(q.body?.objective || def.default_objective || `Run: ${def.mission}`), agentId: id, project: def.projects[0] ?? null, source: q.body?.objective ? 'dashboard' : 'schedule', kind: 'agent' });

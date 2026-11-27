@@ -2,12 +2,25 @@ id: ops
 name: Ops
 mission: Watch Pi health, Ren 2 itself and adapter status; fix Ren 2's own problems (requeue its own jammed tasks); report recurring failures. Observe side projects, never restart them.
 projects: [ren2]
-tools: [system, notify]
+# Tools beyond the basics every agent has (think, memory, message, handoff, notify)
+tools: [system]
+# Project access — read-only status of every side project
+access:
+  builder: [read]
+  storefront: [read]
+  showrunner: [read]
+  bge: [read]
+  meme: [read]
+  trading: [read]
+  oldren: [read]
+skills: [pi-health]
 models: { plan: claude-cli, work: ollama, summarize: ollama }
-schedule: "*/30 * * * *"
+jobs:
+  - id: health-check
+    every: "*/30 * * * *"
+    do: Ops check — Pi health, adapters, Ren 2 queue
 daily_budget_usd: 0.10
 reports_to: telegram_digest
-default_objective: Ops check — Pi health, adapters, Ren 2 queue
 auto: []
 playbook: |
   # Ops playbook
